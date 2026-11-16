@@ -1,5 +1,5 @@
 'use strict';
-/** test
+/**
  * 공통: 환경설정 로더 (.env 파일 + process.env)
  * 외부 라이브러리 없이 .env 를 파싱한다.
  */
@@ -84,6 +84,9 @@ function createConfig(overrides = {}) {
       pasvMax: toInt(env.FTP_PASV_MAX, 50020),
       publicHost: env.FTP_PUBLIC_HOST || publicHostOf(env.FORMREADER_PUBLIC_URL),
     },
+    // TextSense 작업 완료 콜백(callbackUri). 켜면 완료 즉시 알림을 받는다. (상태 폴링은 안전장치로 계속 동작)
+    // 콜백은 TextSense 서버가 이 프로그램의 HTTP 주소로 POST 하므로 FORMREADER_PUBLIC_URL 이 필요하다.
+    callback: { enabled: String(env.TEXTSENSE_CALLBACK || '').toLowerCase() === 'true' },
     requestTimeoutMs: toInt(env.REQUEST_TIMEOUT_MS, 15000),
     jobTimeoutMs: toInt(env.JOB_TIMEOUT_MS, 120000),
     jobPollIntervalMs: toInt(env.JOB_POLL_INTERVAL_MS, 1000),

@@ -48,19 +48,56 @@ function collectWords(elements, out = []) {
   return out;
 }
 
+/** 병합 칸 수: 값이 없거나 0 이하이면 1 (병합 없음) */
+const span = (v) => { const n = num(v); return n && n > 1 ? Math.floor(n) : 1; };
+
+/**
+ * 표 셀 위치/병합. 명세 표의 키 이름 철자가 `colum_index`/`colum_span` 이라 정상 철자(column_*)와 함께 모두 받는다.
+ * layout: 병합을 반영한 행 목록 [[{ text, rowSpan, colSpan }]] - 병합으로 가려지는 칸은 생략, 비어 있는 칸은 빈 셀로 채운다.
+ */
 function collectTables(elements) {
   return (elements || []).filter((e) => e && e.type === 'table').map((t) => {
     const cells = (t.cells || []).map((c) => ({
       row: num(c.row_index) ?? 0,
-      col: num(c.column_index) ?? 0,
+      col: num(c.column_index) ?? num(c.colum_index) ?? 0,
+      rowSpan: span(c.row_span),
+      colSpan: span(c.column_span ?? c.colum_span),
       text: String(c.content ?? (c.texts || []).map(elementText).join(' ')).trim(),
     }));
-    const rows = Math.max(num(t.num_rows) || 0, ...cells.map((c) => c.row + 1), 0);
-    const cols = Math.max(num(t.num_cols) || 0, ...cells.map((c) => c.col + 1), 0);
+    const rows = Math.max(num(t.num_rows) || 0, ...cells.map((c) => c.row + c.rowSpan), 0);
+    const cols = Math.max(num(t.num_cols) || 0, ...cells.map((c) => c.col + c.colSpan), 0);
     const grid = Array.from({ length: rows }, () => Array(cols).fill(''));
-    for (const c of cells) grid[c.row][c.col] = c.text;
-    return { rows, cols, grid };
+    const origin = Array.from({ length: rows }, () => Array(cols).fill(null)); // 칸 → 시작 셀
+    const covered = Array.from({ length: rows }, () => Array(cols).fill(false)); // 병합으로 가려진 칸
+    for (const c of cells) {
+      grid[c.row][c.col] = c.text;
+      origin[c.row][c.col] = c;
+      for (let r = c.row; r < Math.min(rows, c.row + c.rowSpan); r++) {
+        for (let k = c.col; k < Math.min(cols, c.col + c.colSpan); k++) if (r !== c.row || k !== c.col) covered[r][k] = true;
+      }
+    }
+    const layout = grid.map((row, r) => row.reduce((out, _, k) => {
+      if (covered[r][k]) return out;
+      const c = origin[r][k];
+      out.push(c ? { text: c.text, rowSpan: Math.min(c.rowSpan, rows - r), colSpan: Math.min(c.colSpan, cols - k) } : { text: '', rowSpan: 1, colSpan: 1 });
+      return out;
+    }, []));
+    return { rows, cols, grid, layout };
   });
+}
+
+/** 페이지 부가 정보 (명세: alignment / classification / description / flags / version) - 값이 없으면 null */
+function pageMeta(p) {
+  const pick = (o, ...keys) => (o && typeof o === 'object' ? Object.fromEntries(keys.map((k) => [k, o[k] ?? null])) : null);
+  const classification = pick(p.classification, 'class', 'confidence');
+  const alignment = pick(p.alignment, 'confidence', 'reference');
+  return {
+    classification: classification && (classification.class !== null || classification.confidence !== null) ? classification : null,
+    alignment: alignment && (alignment.confidence !== null || alignment.reference !== null) ? alignment : null,
+    description: typeof p.description === 'string' && p.description.trim() ? p.description.trim() : null,
+    flags: p.flags ?? null,
+    version: typeof p.version === 'string' ? p.version : null,
+  };
 }
 
 /** SearchAPI 결과(fields) → [{ name, text, items:[{text, conf}] }] */
@@ -91,9 +128,11 @@ function joinWords(words) {
  * 결과 JSON → 정규화 모델
  * @param raw TextSense 결과 JSON
  * @param opts.pageSize { width, height } 알고 있는 페이지 픽셀 크기(이미지 헤더 등). 없으면 단어 분포로 추정한다.
- * @returns { pages:[{ page, content, orientation, width, height, sizeSource, words, tables, fields }] }
+ * @param opts.pageMap  요청한 원본 페이지 번호 목록. pages 옵션으로 일부 페이지만 요청하면 결과의 pages_1 이 원본 1페이지가 아니므로
+ *                      pages_N → pageMap[N-1] 로 원본 페이지 번호를 복원한다. (없으면 pages_N 의 N 을 그대로 사용)
+ * @returns { version, pages:[{ page, content, orientation, width, height, sizeSource, words, tables, fields, meta }] }
  */
-function normalizeOcr(raw, { pageSize = null } = {}) {
+function normalizeOcr(raw, { pageSize = null, pageMap = null } = {}) {
   const dict = raw && raw.document && raw.document.pages;
   if (!dict || typeof dict !== 'object') throw new Error('OCR 결과에 document.pages 가 없습니다. (TextSense 결과 JSON 형식이 아님)');
 
@@ -101,6 +140,8 @@ function normalizeOcr(raw, { pageSize = null } = {}) {
     .map(([key, p]) => ({ key, p, no: parseInt(String(key).replace(/\D+/g, ''), 10) }))
     .sort((a, b) => (a.no || 0) - (b.no || 0))
     .map(({ p, no }, i) => {
+      const order = no || i + 1; // 결과 내 순번 (1부터)
+      const sourcePage = Array.isArray(pageMap) && pageMap[order - 1] ? pageMap[order - 1] : order;
       const words = collectWords(p.elements);
       let width = pageSize ? pageSize.width : 0;
       let height = pageSize ? pageSize.height : 0;
@@ -111,9 +152,10 @@ function normalizeOcr(raw, { pageSize = null } = {}) {
       }
       const norm = words.map((w) => ({ ...w, cx: (w.x1 + w.x2) / 2 / width, cy: (w.y1 + w.y2) / 2 / height, h: (w.y2 - w.y1) / height }));
       const content = typeof p.content === 'string' && p.content.trim() ? p.content.trim() : joinLines(norm);
-      return { page: no || i + 1, content, orientation: num(p.orientation) ?? 0, width, height, sizeSource, words: norm, tables: collectTables(p.elements), fields: collectFields(p.fields) };
+      return { page: sourcePage, content, orientation: num(p.orientation) ?? 0, width, height, sizeSource, words: norm, tables: collectTables(p.elements), fields: collectFields(p.fields), meta: pageMeta(p) };
     });
-  return { pages };
+  const version = raw.document && typeof raw.document.version === 'string' ? raw.document.version : null;
+  return { version, pages };
 }
 
 /** content 가 없을 때 줄 단위로 텍스트 구성 */
@@ -133,10 +175,11 @@ function fullText(ocr) {
 /** 화면 표시용: 정규화 좌표(cx,cy,h)를 제외한 페이지별 추출 결과 */
 function buildView(ocr) {
   return {
+    version: ocr.version || null,
     pages: ocr.pages.map((p) => ({
       page: p.page, content: p.content, orientation: p.orientation, width: p.width, height: p.height, sizeSource: p.sizeSource,
       words: p.words.map(({ text, x1, y1, x2, y2, conf }) => ({ text, x1, y1, x2, y2, conf })),
-      tables: p.tables, fields: p.fields,
+      tables: p.tables, fields: p.fields, meta: p.meta,
     })),
   };
 }

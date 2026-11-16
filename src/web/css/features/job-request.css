@@ -14,6 +14,15 @@
 .upload-opts { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-bottom: 14px; }
 .upload-opts label { min-width: 280px; }
 
+.adv-opts { margin: 0 0 14px; border: 1px solid var(--c-line); border-radius: var(--radius); background: #fafcff; padding: 10px 14px; }
+.adv-opts > summary { font-weight: 600; font-size: 13.5px; color: var(--c-text-sub); }
+.adv-opts[open] > summary { margin-bottom: 12px; }
+.adv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 16px; align-items: end; }
+.adv-grid label { min-width: 0; }
+.adv-grid label.chk { flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; height: 38px; font-size: 13px; font-weight: 500; color: var(--c-text); }
+.adv-grid label.chk input { width: 16px; height: 16px; }
+.adv-opts .hint { margin: 10px 0 0; }
+
 .log { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 6px; }
 .log li { padding: 9px 14px; border-radius: var(--radius); background: #f4f7fd; border: 1px solid var(--c-line); font-size: 13px; }
 .log li.ok { background: var(--c-ok-bg); border-color: #c3ead7; color: var(--c-ok); font-weight: 600; }

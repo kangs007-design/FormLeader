@@ -121,11 +121,39 @@ src/web/
 
 실패 시 작업 현황에 TextSense 의 오류 코드/메시지(`/job/errors`)가 그대로 표시됩니다. 결과 파일이 없으면 “결과 파일을 찾을 수 없습니다 (LOCAL_OUTPUT_DIR 확인)” 로 실패합니다.
 
+### 인식 옵션 (REST API 매뉴얼 반영)
+
+문서 처리 화면의 **고급 인식 옵션**과 서식의 **SearchAPI 규칙**으로 TextSense 요청(`extraJobs[].option`)을 조정할 수 있습니다. 지정하지 않으면 기본값(`pages: "all"`, `reqOption: {}`)으로 이전과 똑같이 요청합니다.
+
+| 항목 | 요청 위치 | 비고 |
+|---|---|---|
+| 인식할 페이지 | `pages` | `all` / `1-3` / `1,3,5`. 정렬·중복 제거 후 전달. **결과의 `pages_N` 은 요청한 페이지 순서의 번호이므로 원본 페이지 번호로 복원해 표시** (뷰어·서식 Key 의 페이지도 원본 기준) |
+| 표 구조 무시 | `reqOption.ResultOption.Format = "PlainText"` | |
+| 전처리 | `reqOption.PreProcessOption` (`denoising`, `ScaleUp`) | |
+| 검출 설정 | `reqOption.CustomSetting` | TextInputMaxAxis, TableInputMaxAxis, TextScoreThreshold, TableCellScoreThreshold, CellAlignSearchMargin, CellAlignGridMargin (화면은 앞의 2개, 나머지는 API) |
+| SearchAPI | `reqOption.SearchAPI` | FindRow / FindRightRow / FindCol / FindBottomCol / FindWord / FindLine (Key: 문자열 목록), FindRegion (Key: 좌상단·우하단 좌표). 서식에 등록한 규칙 + 작업에서 직접 지정한 규칙을 합쳐 전달(이름 중복 불가). 결과는 “SearchAPI 필드” 탭 |
+| 완료 콜백 | `callbackUri` | `TEXTSENSE_CALLBACK=true` + `FORMREADER_PUBLIC_URL` 설정 시 사용. 콜백은 **폴링을 즉시 깨우는 신호로만** 쓰고(본문은 신뢰하지 않음) 성공/실패는 항상 status API 로 확인 |
+
+API 로 직접 올릴 때는 `POST /api/jobs` 본문에 `options` 를 넣습니다.
+
+```json
+{ "fileName": "a.pdf", "contentBase64": "...", "templateId": "form_...",
+  "options": { "pages": "2-3", "plainText": false, "denoising": true, "scaleUp": false,
+               "customSetting": { "TextInputMaxAxis": 2200 },
+               "searchApi": [ { "type": "FindLine", "name": "date", "key": ["일시"] },
+                              { "type": "FindRegion", "name": "box", "key": [[10, 20], [110, 60]] } ] } }
+```
+
+결과 화면은 표의 병합 셀(`row_span`/`column_span`)을 반영하고, 페이지별 분류·정렬·엔진 버전 정보가 있으면 함께 표시합니다. 오류 조회(`/job/errors`)의 메시지는 한 줄로 정리하고 `ftp://user:password@` 같은 접속 정보는 가려서 표시합니다.
+
+미지원: 결과 형식 `pdf`/`excel`/`text`/`text-split` (화면 표시를 위해 `json` 만 사용), `wordCorrection`(사용자 사전 마운트 필요).
+
 ### 알려진 제약
 
 - 결과 JSON 의 좌표(`points`)는 이미지 픽셀 기준이고 **페이지 크기 정보는 포함되지 않습니다.** 서식 영역(0~1 비율)은 이미지 업로드 시 헤더(PNG/JPEG/BMP)에서 읽은 크기로, **PDF 는 인식된 단어의 분포로 페이지 크기를 추정**합니다. 따라서 PDF 에서 서식 Key 영역 추출은 근사치이며, 정확도가 필요하면 SearchAPI(`FindRegion` 등) 연동이 필요합니다. (OCR 본문/표/단어 추출은 영향 없음)
 - 서식 설정 화면의 미리보기는 이미지만 지원하며 PDF 는 좌표를 직접 입력합니다.
 - 문서 확인의 원본 표시: PDF·PNG·JPG·BMP 지원. TIFF 는 브라우저가 표시하지 못해 자동으로 `텍스트` 보기로 대체됩니다. `인식 영역` 오버레이는 TextSense 가 PDF 를 72dpi 의 2배로 변환한다는 관찰값(`doc-viewer.view.js` 의 `PDF_OCR_SCALE`)을 기준으로 위치를 맞추며, 인식 좌표가 이를 넘으면 자동 보정합니다. 원본 파일은 `GET /api/jobs/<작업ID>/file` 로만 제공됩니다(작업 id 로만 접근, 경로 직접 지정 불가).
+- 완료 콜백(`/api/textsense/callback`)은 인증이 없으므로 내부망/VPN 에서만 켜세요. (켜지 않으면 경로 자체가 없습니다)
 - 로그인/인증은 포함하지 않았습니다. 내부망 전용으로 사용하세요.
 - 자동 테스트(`npm test`)는 공식 문서 기반 Mock 서버로 수행하며 `.env` 를 읽지 않습니다. 실서버 종단 테스트는 `npm start` 후 PDF 를 업로드해 확인합니다. (2025-11-12: 실서버에서 PDF 업로드 → HTTP 입력 → OCR → FTP 결과 수신 → 화면 표시까지 확인)
 - `npm run start:mock` 은 고정 샘플 결과를 돌려주는 Mock 이므로 업로드한 파일을 실제로 OCR 하지 않습니다. 실제 OCR 은 `npm start` 를 사용하세요. Mock 으로 만든 작업 기록은 실제 결과가 아니니 삭제해서 쓰세요.

@@ -35,14 +35,32 @@ FR.formJobView = (() => {
     li.className = 'ng'; li.textContent = `${fileName} → 확인 시간 초과. 작업 현황에서 확인하세요.`;
   }
 
+  /** 고급 인식 옵션 (비어 있으면 TextSense 기본값) */
+  function collectOptions() {
+    const o = {};
+    const pages = FR.$('#jr-pages').value.trim();
+    if (pages) o.pages = pages;
+    if (FR.$('#jr-plain').checked) o.plainText = true;
+    if (FR.$('#jr-denoise').checked) o.denoising = true;
+    if (FR.$('#jr-scaleup').checked) o.scaleUp = true;
+    const custom = {};
+    const text = FR.$('#jr-text-axis').value.trim();
+    const table = FR.$('#jr-table-axis').value.trim();
+    if (text) custom.TextInputMaxAxis = Number(text);
+    if (table) custom.TableInputMaxAxis = Number(table);
+    if (Object.keys(custom).length) o.customSetting = custom;
+    return o;
+  }
+
   async function uploadFiles(files) {
     const log = FR.$('#jr-log');
     const templateId = FR.$('#jr-template').value || undefined;
+    const options = collectOptions();
     for (const file of files) {
       const li = FR.el('li', {}, `${file.name} 업로드 중...`);
       log.prepend(li);
       try {
-        const job = await FR.api('POST', '/api/jobs', { fileName: file.name, contentBase64: await FR.readFileAsBase64(file), templateId });
+        const job = await FR.api('POST', '/api/jobs', { fileName: file.name, contentBase64: await FR.readFileAsBase64(file), templateId, options });
         watchJob(job.id, li, file.name, files.length === 1); // 한 개만 올리면 완료 시 결과 화면으로 자동 이동
       } catch (e) { li.className = 'ng'; li.textContent = `${file.name} → 실패: ${e.message}`; }
     }
@@ -74,9 +92,22 @@ FR.formJobView = (() => {
 
   const confText = (c) => (c === null || c === undefined ? '' : c.toFixed(2));
 
+  /** 병합 셀(rowspan/colspan)을 반영해 표를 그린다. (layout 이 없으면 단순 격자) */
   function renderTable(t) {
-    return FR.el('div', { class: 'words-wrap' }, FR.el('table', { class: 'grid' },
-      FR.el('tbody', {}, t.grid.map((row) => FR.el('tr', {}, row.map((cell) => FR.el('td', {}, cell)))))));
+    const rows = t.layout || t.grid.map((row) => row.map((text) => ({ text, rowSpan: 1, colSpan: 1 })));
+    return FR.el('div', { class: 'words-wrap' }, FR.el('table', { class: 'grid merged' },
+      FR.el('tbody', {}, rows.map((row) => FR.el('tr', {}, row.map((c) => FR.el('td', { rowspan: c.rowSpan, colspan: c.colSpan }, c.text)))))));
+  }
+
+  /** 페이지 부가 정보 (분류/정렬/설명/엔진 버전) - 값이 있는 것만 태그로 표시 */
+  function metaTags(p) {
+    const m = p.meta || {};
+    const tags = [];
+    if (m.classification) tags.push(`분류 ${m.classification.class ?? '-'}${m.classification.confidence !== null ? ` (${Number(m.classification.confidence).toFixed(2)})` : ''}`);
+    if (m.alignment) tags.push(`정렬 신뢰도 ${m.alignment.confidence !== null ? Number(m.alignment.confidence).toFixed(2) : '-'}${m.alignment.reference ? ` · 기준 ${m.alignment.reference}` : ''}`);
+    if (m.description) tags.push(m.description);
+    if (m.version) tags.push(`엔진 ${m.version}`);
+    return tags.map((t) => FR.el('span', { class: 'tag' }, t));
   }
 
   function renderWords(words) {
@@ -123,7 +154,7 @@ FR.formJobView = (() => {
     const p = viewer.view.pages[viewer.idx];
     const panel = FR.$('#or-page-panel');
     const meta = FR.el('p', { class: 'page-meta' },
-      `단어 ${p.words.length}개 · 표 ${p.tables.length}개${p.orientation ? ` · 회전 ${p.orientation * 90}°` : ''} · 좌표 기준 ${p.width}×${p.height}px (${p.sizeSource === 'image' ? '이미지 크기' : '추정'})`);
+      `단어 ${p.words.length}개 · 표 ${p.tables.length}개${p.orientation ? ` · 회전 ${p.orientation * 90}°` : ''} · 좌표 기준 ${p.width}×${p.height}px (${p.sizeSource === 'image' ? '이미지 크기' : '추정'}) `, ...metaTags(p));
     const sub = FR.el('div', { class: 'tabbar sub', role: 'tablist', 'aria-label': '추출 결과 종류' });
     buildTabbar(sub, SUB_TABS.map((t) => ({ key: t.key, label: t.label, count: t.count(p) })), viewer.sub, (k) => { viewer.sub = k; renderPagePanel(); });
 
@@ -190,7 +221,8 @@ FR.formJobView = (() => {
       FR.$('#or-empty').hidden = true;
       FR.$('#or-detail').hidden = false;
       FR.$('#or-title').textContent = job.fileName;
-      FR.$('#or-meta').textContent = `${job.ocrResult.pageCount}페이지 · ${job.ocrResult.wordCount}단어 · ${FR.fmtTime(job.updatedAt)}`;
+      const range = job.options && job.options.pages && job.options.pages !== 'all' ? ` · 인식 범위 ${job.options.pages}페이지` : '';
+      FR.$('#or-meta').textContent = `${job.ocrResult.pageCount}페이지 · ${job.ocrResult.wordCount}단어${range} · ${FR.fmtTime(job.updatedAt)}`;
       FR.showTab('ocr-result'); // 화면을 먼저 보이게 해야 뷰어가 실제 폭을 측정해서 문서를 그린다
 
       Object.assign(viewer, { view, idx: 0, sub: 'text' });

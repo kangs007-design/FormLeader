@@ -33,7 +33,7 @@ function createApp(config = createConfig()) {
   const formJobService = new FormJobService({ config, client, ocrResultService, formTemplateService });
 
   const router = new Router();
-  const deps = { ocrConnectService, formTemplateService, formJobService, ocrResultService };
+  const deps = { config, ocrConnectService, formTemplateService, formJobService, ocrResultService };
   router.add('GET', '/api/health', async () => ({ status: 'UP', time: new Date().toISOString() }));
   registerOcrConnectRoutes(router, deps);
   registerFormTemplateRoutes(router, deps);

@@ -70,6 +70,8 @@
 /* 페이지별 상세 (페이지 탭 → 본문/표/필드/단어 하위 탭) */
 .page-meta { margin: 14px 0 10px; color: var(--c-text-sub); font-size: 13px; }
 .panel-empty { padding: 26px 0; text-align: center; color: var(--c-text-mute); }
+.page-meta .tag { display: inline-block; margin: 0 4px 0 0; padding: 1px 8px; border-radius: 999px; background: #eef3ff; color: var(--c-primary); font-size: 12px; font-weight: 600; }
+.grid.merged td { white-space: normal; border: 1px solid var(--c-line); vertical-align: middle; }
 .table-title { margin: 14px 0 8px; font-size: 13.5px; font-weight: 700; }
 .table-title:first-child { margin-top: 0; }
 #or-page-panel .words-wrap { max-height: 420px; }

@@ -108,8 +108,9 @@ FR.docViewer = (() => {
       if (state.ext === '.pdf') {
         const pdf = await getPdf();
         if (my !== state.token) return;
-        if (state.idx + 1 > pdf.numPages) throw new Error('원본 PDF 에 해당 페이지가 없습니다');
-        const pdfPage = await pdf.getPage(state.idx + 1);
+        // 일부 페이지만 인식한 경우 결과 순번(idx)과 원본 페이지 번호(p.page)가 다르다
+        if (p.page > pdf.numPages) throw new Error(`원본 PDF 에 ${p.page}페이지가 없습니다`);
+        const pdfPage = await pdf.getPage(p.page);
         if (my !== state.token) return;
 
         const base = pdfPage.getViewport({ scale: 1 });

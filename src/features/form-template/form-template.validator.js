@@ -7,9 +7,12 @@
  *      name, page, mode('rect'|'line'|'cell'|'word'),
  *      rect:{x,y,w,h} (페이지 대비 0~1 비율),
  *      required, verify(검증키), pattern, min, max(범위), exceptValues[](예외값)
- *  }] }
+ *  }],
+ *  searchRules: [{ type, name, key }]  (선택) 이 서식으로 요청할 때 TextSense reqOption.SearchAPI 로 함께 보낼 규칙
+ *  }
  */
 const { AppError } = require('../../common/app.error');
+const { normalizeSearchRules } = require('../ocr-connect/req-option.validator');
 
 const MODES = ['rect', 'line', 'cell', 'word'];
 
@@ -67,7 +70,8 @@ function normalizeTemplateInput(input) {
     if (seen.has(k.name)) throw AppError.badRequest(`Key 이름이 중복되었습니다: ${k.name}`);
     seen.add(k.name);
   }
-  return { name, docType, keywords, keys };
+  const searchRules = normalizeSearchRules(input.searchRules, 'SearchAPI 규칙');
+  return { name, docType, keywords, keys, searchRules };
 }
 
 module.exports = { normalizeTemplateInput, MODES };

@@ -12,6 +12,8 @@ const { getImageSize } = require('../../common/image-size.util');
 const { detectLocalAddress } = require('../../common/local-address.util');
 const { AppError } = require('../../common/app.error');
 const { createLogger } = require('../../common/logger.util');
+const { parseErrors } = require('../ocr-connect/textsense.client');
+const { normalizeJobOptions, buildReqOption } = require('../ocr-connect/req-option.validator');
 
 const ALLOWED_EXT = ['.pdf', '.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'];
 const MAX_TRANSIENT_STATUS_ERRORS = 5;
@@ -26,6 +28,8 @@ class FormJobService {
     this.repo = new JsonFileRepository(path.join(config.dataDir, 'form-jobs.json'));
     this.log = createLogger('form-job');
     this.running = new Set(); // 테스트/종료 시 완료 대기용
+    this.waiters = new Map(); // 진행 중인 TextSense 작업 id → 폴링 대기를 깨우는 함수 (완료 콜백 수신 시 사용)
+    this.woken = new Set(); // 대기 시작 전에 도착한 콜백
   }
 
   /** 목록용: 큰 값(추출 Key-Value)은 빼고 화면 표시에 필요한 요약(result)만 포함 */
@@ -52,12 +56,14 @@ class FormJobService {
   }
 
   /** 파일을 저장하고 작업을 등록한 뒤, OCR 처리는 백그라운드로 시작한다. */
-  async create({ fileName, contentBase64, templateId }) {
+  async create({ fileName, contentBase64, templateId, options }) {
     const safeName = toSafeFileName(fileName);
     const ext = path.extname(safeName).toLowerCase();
     if (!ALLOWED_EXT.includes(ext)) throw AppError.badRequest(`지원하지 않는 파일 형식입니다: ${ext || '(없음)'} (허용: ${ALLOWED_EXT.join(', ')})`);
     if (!contentBase64 || typeof contentBase64 !== 'string') throw AppError.badRequest('파일 내용(contentBase64)이 필요합니다.');
-    if (templateId) await this.formTemplateService.get(templateId);
+    const template = templateId ? await this.formTemplateService.get(templateId) : null;
+    const jobOptions = normalizeJobOptions(options);
+    buildReqOption(jobOptions, template && template.searchRules); // 서식 규칙과 직접 지정한 규칙의 충돌(이름 중복)을 업로드 시점에 알린다
 
     const id = createId('job');
     const storedName = `${id}${ext}`;
@@ -67,7 +73,7 @@ class FormJobService {
 
     const now = new Date().toISOString();
     const job = await this.repo.insert({
-      id, fileName: safeName, storedName, templateId: templateId || null,
+      id, fileName: safeName, storedName, templateId: templateId || null, options: jobOptions,
       status: 'pending', engineStatus: null, taskId: null, error: null, ocrResult: null, createdAt: now, updatedAt: now,
     });
 
@@ -104,32 +110,43 @@ class FormJobService {
 
   /** OCR 처리 본체 */
   async run(id) {
+    let taskIdOf = null;
     try {
       const job = await this.get(id);
       await this._patch(id, { status: 'processing' });
 
       const outputName = `${id}.json`;
+      const options = job.options || normalizeJobOptions({}); // 이 기능 추가 전에 만든 작업은 옵션이 없다
+      const template = job.templateId ? await this.formTemplateService.get(job.templateId).catch(() => null) : null;
       const res = await this.client.buildJob({
         inputUri: await this._inputUri(job.storedName),
         outputUri: await this._outputUri(outputName),
         outputType: 'json',
+        pages: options.pages,
+        reqOption: buildReqOption(options, template && template.searchRules),
+        callbackUri: await this._callbackUri(),
       });
       if (res.status < 200 || res.status >= 300) {
         throw AppError.upstream(`TextSense 작업 요청 실패 (HTTP ${res.status})`, { response: res.text.slice(0, 500) });
       }
       const taskId = res.json && res.json.id;
       if (!taskId) throw AppError.upstream('TextSense 응답에 작업 id 가 없습니다.', { response: res.text.slice(0, 500) });
+      taskIdOf = taskId;
+      this.woken.delete(taskId);
+      this.waiters.set(taskId, null); // 콜백 수신 대상 등록 (대기 시작 전에 온 콜백도 놓치지 않는다)
       await this._patch(id, { taskId, engineStatus: res.json.status || 'AWAITING' });
 
       const deadline = Date.now() + this.config.jobTimeoutMs;
       await this._waitForSuccess(id, taskId, deadline);
       const ocrRaw = await this._readOutputFile(outputName, this.config.outputFileWaitMs);
 
-      const result = await this.ocrResultService.apply(ocrRaw, job.templateId, { pageSize: this._pageSize(job) });
+      const result = await this.ocrResultService.apply(ocrRaw, job.templateId, { pageSize: this._pageSize(job), pageMap: options.pageList });
       await this._patch(id, { status: 'done', ocrResult: result, error: null });
     } catch (err) {
       this.log.error('작업 실패', id, err.message);
       await this._patch(id, { status: 'failed', error: err.message }).catch(() => {});
+    } finally {
+      if (taskIdOf) this._forget(taskIdOf);
     }
   }
 
@@ -145,7 +162,7 @@ class FormJobService {
       } catch (err) {
         if (++transient > MAX_TRANSIENT_STATUS_ERRORS) throw err;
         this.log.warn(`상태 조회 일시 오류 (${transient}/${MAX_TRANSIENT_STATUS_ERRORS}): ${err.message}`);
-        await sleep(this.config.jobPollIntervalMs);
+        await this._pause(taskId, this.config.jobPollIntervalMs);
         continue;
       }
       transient = 0;
@@ -156,16 +173,15 @@ class FormJobService {
       if (status !== last) { last = status; await this._patch(id, { engineStatus: status }); }
       if (status === 'SUCCESS') return;
       if (status === 'FAILURE') throw AppError.upstream(await this._describeFailure(taskId));
-      await sleep(this.config.jobPollIntervalMs);
+      await this._pause(taskId, this.config.jobPollIntervalMs);
     }
     throw AppError.timeout(`OCR 작업 대기 시간 초과 (${this.config.jobTimeoutMs}ms, 마지막 상태: ${last || '-'})`);
   }
 
+  /** 실패 사유 문장. TextSense 의 /job/errors 내용(접속 정보는 가림)을 사용한다. */
   async _describeFailure(taskId) {
     try {
-      const res = await this.client.getErrors(taskId);
-      const list = res.json && Array.isArray(res.json.errors) ? res.json.errors : [];
-      const msgs = list.map((e) => [e.code, String(e.message || String(e.cause || '').split('\n')[0]).replace(/\s*\n\s*/g, ' ')].filter(Boolean).join(': ')).filter(Boolean);
+      const msgs = parseErrors(await this.client.getErrors(taskId)).map((e) => [e.code, e.message].filter(Boolean).join(': ')).filter(Boolean);
       if (msgs.length) return `TextSense 작업 실패 - ${msgs.join(' / ').slice(0, 500)}`;
     } catch (_) { /* 오류 조회 실패는 무시하고 기본 메시지 사용 */ }
     const hint = this.config.ftp.enabled
@@ -173,6 +189,45 @@ class FormJobService {
       : '입력/출력 경로가 TextSense 서버에서 접근 가능한지 확인하세요.';
     return `TextSense 작업 실패 (FAILURE). 오류 상세를 조회하지 못했습니다. ${hint}`;
   }
+
+  /** 완료 콜백 주소. TEXTSENSE_CALLBACK=true 이고 입력 전달용 HTTP 주소가 있을 때만 사용 (TextSense 가 이 PC 로 POST) */
+  async _callbackUri() {
+    const { callback, publicUrl } = this.config;
+    if (!callback || !callback.enabled || !publicUrl) return undefined;
+    const base = String(publicUrl).toLowerCase() === 'auto'
+      ? `http://${await this._publicHost('auto')}:${this.config.httpPort || this.config.port}`
+      : publicUrl;
+    return `${base}/api/textsense/callback`;
+  }
+
+  /**
+   * 완료 콜백 수신. 본문은 신뢰하지 않고(인증 없음) 해당 작업의 폴링 대기만 즉시 깨운다.
+   * 실제 성공/실패 판단과 결과 읽기는 항상 /job/status 조회로 한다. 모르는 id 는 조용히 무시.
+   */
+  notifyCallback(payload) {
+    const taskId = payload && typeof payload.id === 'string' ? payload.id : null;
+    if (!taskId || !this.waiters.has(taskId)) return false;
+    const wake = this.waiters.get(taskId);
+    if (wake) wake(); else this.woken.add(taskId);
+    return true;
+  }
+
+  /** 다음 상태 조회까지 대기. 콜백이 오면 즉시 반환 */
+  _pause(taskId, ms) {
+    if (this.woken.delete(taskId)) return Promise.resolve();
+    return new Promise((resolve) => {
+      let t = null;
+      const done = () => {
+        clearTimeout(t);
+        if (this.waiters.has(taskId)) this.waiters.set(taskId, null); // 대기 종료 후 도착한 콜백은 woken 에 쌓여 다음 대기를 즉시 통과
+        resolve();
+      };
+      t = setTimeout(done, ms);
+      this.waiters.set(taskId, done);
+    });
+  }
+
+  _forget(taskId) { this.waiters.delete(taskId); this.woken.delete(taskId); }
 
   /** 결과 JSON 파일을 읽는다. 공유 저장소 지연을 고려해 잠시 재시도(작성 중인 파일은 파싱 실패 → 재시도) */
   async _readOutputFile(outputName, waitMs) {
@@ -202,7 +257,7 @@ class FormJobService {
     if (job.status !== 'done') throw AppError.badRequest(`아직 결과가 없습니다 (상태: ${job.status})`);
     const file = path.join(this.config.storage.outputDir, `${id}.json`);
     if (!fs.existsSync(file)) throw AppError.notFound(`결과 파일이 없습니다: ${file}`);
-    return this.ocrResultService.view(JSON.parse(fs.readFileSync(file, 'utf8')), { pageSize: this._pageSize(job) });
+    return this.ocrResultService.view(JSON.parse(fs.readFileSync(file, 'utf8')), { pageSize: this._pageSize(job), pageMap: job.options && job.options.pageList });
   }
 
   /** 실행 중인 작업이 모두 끝날 때까지 대기 (테스트/종료용) */

@@ -4,6 +4,7 @@ FR.formTemplateView = (() => {
   let forms = [];
   let currentId = null;
   let keys = [];
+  let rules = []; // SearchAPI 규칙 [{ type, name, key }]
   const imgState = { w: 0, h: 0 };
 
   const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
@@ -48,11 +49,36 @@ FR.formTemplateView = (() => {
     }));
   }
 
+  const SEARCH_TYPES = ['FindRow', 'FindRightRow', 'FindCol', 'FindBottomCol', 'FindWord', 'FindLine', 'FindRegion'];
+
+  /** 화면 입력(쉼표 구분 문자열) ↔ 규칙 key 변환. FindRegion 은 x1,y1,x2,y2 → [[x1,y1],[x2,y2]] */
+  const keyToText = (r) => (r.type === 'FindRegion' ? r.key.flat().join(',') : r.key.join(', '));
+  function textToKey(type, text) {
+    const parts = String(text).split(',').map((s) => s.trim()).filter(Boolean);
+    if (type !== 'FindRegion') return parts;
+    const n = parts.map(Number);
+    return n.length === 4 && n.every(Number.isFinite) ? [[n[0], n[1]], [n[2], n[3]]] : parts; // 형식이 틀리면 서버가 안내 메시지로 거부
+  }
+
+  function renderRules() {
+    FR.$('#ft-rules').replaceChildren(...rules.map((r, i) => FR.el('tr', {},
+      FR.el('td', {}, FR.el('select', { onchange: (e) => { r.type = e.target.value; r.key = textToKey(r.type, keyToText(r)); renderRules(); } },
+        SEARCH_TYPES.map((t) => FR.el('option', { value: t, selected: t === r.type }, t)))),
+      FR.el('td', {}, FR.el('input', { value: r.name, placeholder: '결과 필드 이름', onchange: (e) => { r.name = e.target.value.trim(); } })),
+      FR.el('td', {}, FR.el('input', {
+        value: keyToText(r), placeholder: r.type === 'FindRegion' ? '103.8, 27.9, 179.2, 57.0' : '찾을 문자열 (쉼표 구분)',
+        onchange: (e) => { r.key = textToKey(r.type, e.target.value); },
+      })),
+      FR.el('td', {}, FR.el('button', { class: 'sm danger', onclick: () => { rules.splice(i, 1); renderRules(); } }, '삭제')))));
+  }
+
   function fillEditor(form) {
     FR.$('#ft-name').value = form ? form.name : '';
     FR.$('#ft-doctype').value = form ? form.docType : '';
     FR.$('#ft-keywords').value = form ? form.keywords.join(', ') : '';
     keys = form ? JSON.parse(JSON.stringify(form.keys)) : [emptyKey(1)];
+    rules = form ? JSON.parse(JSON.stringify(form.searchRules || [])) : []; // 규칙 기능 추가 전에 만든 서식은 규칙이 없다
+    renderRules();
     FR.$('#ft-msg').textContent = '';
     renderKeys(); renderRects(); renderList();
   }
@@ -69,7 +95,7 @@ FR.formTemplateView = (() => {
     return {
       name: FR.$('#ft-name').value, docType: FR.$('#ft-doctype').value,
       keywords: FR.$('#ft-keywords').value.split(',').map((s) => s.trim()).filter(Boolean),
-      keys,
+      keys, searchRules: rules,
     };
   }
 
@@ -119,6 +145,7 @@ FR.formTemplateView = (() => {
     init() {
       initCanvas();
       FR.$('#ft-new').addEventListener('click', () => { currentId = null; fillEditor(null); });
+      FR.$('#ft-addrule').addEventListener('click', () => { rules.push({ type: 'FindLine', name: `field${rules.length + 1}`, key: [] }); renderRules(); });
       FR.$('#ft-addkey').addEventListener('click', () => { keys.push(emptyKey(keys.length + 1)); renderKeys(); renderRects(); });
       FR.$('#ft-save').addEventListener('click', async () => {
         const msg = FR.$('#ft-msg');
