@@ -1,5 +1,5 @@
 'use strict';
-/**
+/** test
  * 공통: 환경설정 로더 (.env 파일 + process.env)
  * 외부 라이브러리 없이 .env 를 파싱한다.
  */
