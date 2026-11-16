@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DigitalLeader v1.0</title>
+  <!-- 공통 스타일 -->
+  <link rel="stylesheet" href="/css/common/tokens.css">
+  <link rel="stylesheet" href="/css/common/base.css">
+  <link rel="stylesheet" href="/css/common/layout.css">
+  <link rel="stylesheet" href="/css/common/components.css">
+  <!-- 개별 기능 스타일 -->
+  <link rel="stylesheet" href="/css/features/dashboard.css">
+  <link rel="stylesheet" href="/css/features/job-request.css">
+  <link rel="stylesheet" href="/css/features/form-template.css">
+  <link rel="stylesheet" href="/css/features/ocr-result.css">
+  <link rel="stylesheet" href="/css/features/ocr-connect.css">
+</head>
+<body>
+  <!-- 아이콘 스프라이트 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z M14 3v5h5 M10 13h6 M10 17h6"/></symbol>
+    <symbol id="i-dashboard" viewBox="0 0 24 24"><path d="M4 4h7v7H4z M13 4h7v4h-7z M13 11h7v9h-7z M4 14h7v6H4z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z M14 3v5h5 M10 13h6 M10 17h4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11 M9 12h11 M9 18h11 M4.5 6h.01 M4.5 12h.01 M4.5 18h.01"/></symbol>
+    <symbol id="i-template" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M4 10h16 M10 10v9"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3 M16 4h3a1 1 0 0 1 1 1v3 M20 16v3a1 1 0 0 1-1 1h-3 M8 20H5a1 1 0 0 1-1-1v-3 M8 12h8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.3-4.3"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4 M7 9l5-5 5 5 M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8 12l3 3 5-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 8v5 M12 16h.01"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5 M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14"/></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.3-4.3 M11 8v6 M8 11h6"/></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M21 21l-4.3-4.3 M8 11h6"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 8h11v13H8z M5 16H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3.5L3 10 M3 4v6h6 M4 13a8 8 0 0 0 14.9 3.5L21 14 M21 20v-6h-6"/></symbol>
+  </svg>
+
+  <div class="app">
+    <!-- 사이드바 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></div>
+        <div class="brand-name">DigitalLeader<small>v1.0</small></div>
+      </div>
+      <nav class="nav" id="tabs">
+        <button class="nav-item active" data-tab="dashboard"><svg class="icon"><use href="#i-dashboard"/></svg><span>대시보드</span></button>
+        <button class="nav-item" data-tab="job-request"><svg class="icon"><use href="#i-upload"/></svg><span>문서 처리</span></button>
+        <button class="nav-item" data-tab="job-status"><svg class="icon"><use href="#i-list"/></svg><span>작업 현황</span></button>
+        <button class="nav-item" data-tab="form-template"><svg class="icon"><use href="#i-template"/></svg><span>서식 관리</span></button>
+        <button class="nav-item" data-tab="ocr-result"><svg class="icon"><use href="#i-scan"/></svg><span>문서 확인</span></button>
+        <button class="nav-item" data-tab="ocr-connect"><svg class="icon"><use href="#i-gear"/></svg><span>설정</span></button>
+      </nav>
+      <div class="sidebar-foot">AI OCR · TextSense 2.0</div>
+    </aside>
+
+    <div class="main">
+      <!-- 상단바 -->
+      <header class="topbar">
+        <div class="search">
+          <svg class="icon"><use href="#i-search"/></svg>
+          <input id="global-search" type="search" placeholder="파일명, 문서 유형을 검색하세요." autocomplete="off">
+        </div>
+        <button class="icon-btn" title="알림" aria-label="알림"><svg class="icon"><use href="#i-bell"/></svg></button>
+        <div class="avatar" title="사용자">FR</div>
+      </header>
+
+      <main class="content">
+        <!-- 대시보드 -->
+        <section id="tab-dashboard" class="tab active">
+          <div class="page-head">
+            <div><h2>문서 처리 현황</h2><p class="sub">업로드한 문서의 OCR 처리 상태를 한눈에 확인합니다.</p></div>
+            <button class="primary" data-goto="job-request"><svg class="icon"><use href="#i-plus"/></svg>문서 업로드</button>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-icon blue"><svg class="icon"><use href="#i-doc"/></svg></div><div><div class="stat-label">처리한 문서</div><div class="stat-value"><span id="st-total">0</span><small>건</small></div></div></div>
+            <div class="stat-card"><div class="stat-icon green"><svg class="icon"><use href="#i-check-circle"/></svg></div><div><div class="stat-label">정상 인식</div><div class="stat-value"><span id="st-ok">0</span><small>건</small></div></div></div>
+            <div class="stat-card"><div class="stat-icon amber"><svg class="icon"><use href="#i-clock"/></svg></div><div><div class="stat-label">처리 중</div><div class="stat-value"><span id="st-run">0</span><small>건</small></div></div></div>
+            <div class="stat-card"><div class="stat-icon orange"><svg class="icon"><use href="#i-alert"/></svg></div><div><div class="stat-label">검토 필요 · 실패</div><div class="stat-value"><span id="st-review">0</span><small>건</small></div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>최근 처리된 문서</h3><button class="sm" data-goto="job-status">전체 보기</button></div>
+            <div class="table-scroll"><table class="grid"><thead><tr><th>파일명</th><th>문서 유형</th><th>요청 일시</th><th>단어 수</th><th>처리 상태</th><th></th></tr></thead><tbody id="db-body"></tbody></table></div>
+          </div>
+        </section>
+
+        <!-- 문서 처리 (업로드) -->
+        <section id="tab-job-request" class="tab">
+          <div class="page-head"><div><h2>문서 처리</h2><p class="sub">PDF·이미지를 올리면 TextSense AI OCR 이 문자를 인식합니다.</p></div></div>
+          <div class="card">
+            <div class="upload-opts">
+              <label>적용 서식
+                <select id="jr-template"><option value="">(자동 분류 - 키워드 기반)</option></select>
+              </label>
+            </div>
+            <div id="jr-drop" class="dropzone" tabindex="0">
+              <div class="dropzone-icon"><svg class="icon"><use href="#i-upload"/></svg></div>
+              <strong>파일을 여기로 끌어다 놓거나 클릭해서 선택하세요</strong>
+              <span class="hint">PDF, PNG, JPG, TIF, BMP · 여러 파일 가능 · 한 개만 올리면 완료 후 결과가 자동으로 열립니다</span>
+              <input id="jr-file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp" hidden>
+            </div>
+            <ul id="jr-log" class="log"></ul>
+          </div>
+        </section>
+
+        <!-- 작업 현황 -->
+        <section id="tab-job-status" class="tab">
+          <div class="page-head">
+            <div><h2>작업 현황</h2><p class="sub">완료 · 처리중 · 실패 상태를 확인하고 결과를 열어볼 수 있습니다.</p></div>
+            <button id="js-refresh"><svg class="icon"><use href="#i-refresh"/></svg>새로고침</button>
+          </div>
+          <div class="card">
+            <div class="table-scroll"><table class="grid"><thead><tr><th>파일명</th><th>처리 상태</th><th>서식</th><th>요청 일시</th><th></th></tr></thead><tbody id="js-body"></tbody></table></div>
+          </div>
+        </section>
+
+        <!-- 서식 관리 -->
+        <section id="tab-form-template" class="tab">
+          <div class="page-head"><div><h2>서식 관리</h2><p class="sub">문서 유형과 Key-Value 영역을 등록해 인식 정책을 반영합니다.</p></div></div>
+          <div class="split">
+            <aside class="card">
+              <div class="card-head"><h3>서식 목록</h3><button id="ft-new" class="sm primary">+ 새 서식</button></div>
+              <ul id="ft-list" class="list"></ul>
+            </aside>
+            <div class="editor card">
+              <div class="row">
+                <label>서식 이름 <input id="ft-name"></label>
+                <label>문서유형 <input id="ft-doctype" placeholder="예: invoice"></label>
+                <label>분류 키워드(쉼표 구분) <input id="ft-keywords" placeholder="예: 청구서, Invoice"></label>
+              </div>
+              <div class="row">
+                <label>샘플 이미지 (화면 표시용, 서버로 전송되지 않음)
+                  <input id="ft-sample" type="file" accept="image/*"></label>
+                <span class="hint">이미지 위에서 드래그하면 Key 영역(Rect)이 추가됩니다. PDF 는 아래 표에서 좌표를 직접 입력하세요.</span>
+              </div>
+              <div id="ft-canvas" class="canvas"><img id="ft-img" alt=""><div id="ft-rects"></div></div>
+              <div class="table-scroll"><table class="grid keys">
+                <thead><tr><th>Key</th><th>페이지</th><th>방식</th><th>x</th><th>y</th><th>w</th><th>h</th><th>필수</th><th>검증키</th><th>패턴(정규식)</th><th>최소</th><th>최대</th><th>예외값(쉼표)</th><th></th></tr></thead>
+                <tbody id="ft-keys"></tbody>
+              </table></div>
+              <div class="row">
+                <button id="ft-addkey" class="sm">+ Key 추가</button>
+                <button id="ft-save" class="primary">저장</button>
+                <button id="ft-delete" class="danger">삭제</button>
+                <span id="ft-msg" class="msg"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 문서 확인 (OCR 결과) -->
+        <section id="tab-ocr-result" class="tab">
+          <div id="or-empty" class="card"><p class="hint">작업 현황에서 완료된 작업의 “결과 보기”를 선택하세요. (PDF/이미지를 업로드하면 완료 후 자동으로 표시됩니다)</p></div>
+          <div id="or-detail" hidden>
+            <div class="viewer-head">
+              <button class="back-btn" id="or-back" title="작업 현황으로" aria-label="뒤로"><svg class="icon"><use href="#i-back"/></svg></button>
+              <h2 id="or-title">문서 확인</h2>
+              <span id="or-meta" class="viewer-meta"></span>
+            </div>
+
+            <div class="viewer">
+              <div class="card">
+                <div class="toolbar">
+                  <button class="tb-btn" id="or-prev" title="이전 페이지"><svg class="icon"><use href="#i-chev-l"/></svg></button>
+                  <span class="tb-label" id="or-page-label">1 / 1</span>
+                  <button class="tb-btn" id="or-next" title="다음 페이지"><svg class="icon"><use href="#i-chev-r"/></svg></button>
+                  <span class="sep"></span>
+                  <button class="tb-btn" id="or-zoom-out" title="축소"><svg class="icon"><use href="#i-zoom-out"/></svg></button>
+                  <span class="tb-label" id="or-zoom-label">100%</span>
+                  <button class="tb-btn" id="or-zoom-in" title="확대"><svg class="icon"><use href="#i-zoom-in"/></svg></button>
+                  <span class="sep"></span>
+                  <div class="seg" role="group" aria-label="보기 방식">
+                    <button class="seg-btn" id="or-mode-original" type="button" aria-pressed="true">원본</button>
+                    <button class="seg-btn" id="or-mode-text" type="button" aria-pressed="false">텍스트</button>
+                  </div>
+                  <button class="seg-btn toggle" id="or-overlay-toggle" type="button" aria-pressed="false" title="인식된 단어의 위치를 원본 위에 표시">인식 영역</button>
+                  <span id="or-sheet-note" class="hint"></span>
+                </div>
+                <div class="sheet-stage"><div id="or-sheet" class="sheet"></div></div>
+              </div>
+
+              <div class="card">
+                <div class="pane-head">인식 결과 <span id="or-doctype" class="pill info"></span></div>
+                <div class="result-body">
+                  <div id="or-banner" class="banner ok"></div>
+                  <div id="or-fields"></div>
+                  <div class="result-actions">
+                    <button id="or-copy"><svg class="icon"><use href="#i-copy"/></svg>전체 텍스트 복사</button>
+                    <button id="or-goto-form" class="primary"><svg class="icon"><use href="#i-template"/></svg>서식 관리</button>
+                  </div>
+                  <span id="or-copy-msg" class="msg"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h3>OCR 추출 결과 (페이지별)</h3></div>
+              <div class="tabbar" id="or-page-tabs" role="tablist" aria-label="페이지"></div>
+              <div id="or-page-panel"></div>
+              <details><summary>서식 적용 결과 JSON</summary><pre id="or-json"></pre></details>
+            </div>
+          </div>
+        </section>
+
+        <!-- 설정: 연결 점검 -->
+        <section id="tab-ocr-connect" class="tab">
+          <div class="page-head"><div><h2>설정 · OCR 서버 연결 점검</h2><p class="sub">TextSense(textsense-gateway) REST API 연결 상태를 확인합니다.</p></div></div>
+          <div class="card">
+            <dl id="oc-info" class="kv"></dl>
+            <button id="oc-test" class="primary">연결 테스트 실행</button>
+            <pre id="oc-result" class="out conn-result"></pre>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/js/common/api.util.js"></script>
+  <script src="/js/features/ocr-connect.view.js"></script>
+  <script src="/js/features/form-template.view.js"></script>
+  <script src="/js/features/dashboard.view.js"></script>
+  <script src="/js/features/doc-viewer.view.js"></script>
+  <script src="/js/features/form-job.view.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

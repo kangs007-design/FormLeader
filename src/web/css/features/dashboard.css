@@ -1,0 +1,18 @@
+/* 개별기능[dashboard]: 처리 현황 통계 카드 + 최근 처리 문서 */
+.stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+.stat-card {
+  display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+  background: var(--c-card); border: 1px solid var(--c-line); border-radius: var(--radius-lg); box-shadow: var(--shadow);
+}
+.stat-icon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.stat-icon .icon { width: 24px; height: 24px; stroke-width: 1.9; }
+.stat-icon.blue { background: var(--c-info-bg); color: var(--c-info); }
+.stat-icon.green { background: var(--c-ok-bg); color: var(--c-ok); }
+.stat-icon.amber { background: var(--c-warn-bg); color: var(--c-warn); }
+.stat-icon.orange { background: var(--c-review-bg); color: var(--c-review); }
+.stat-label { color: var(--c-text-sub); font-size: 12.5px; font-weight: 600; }
+.stat-value { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.15; }
+.stat-value small { font-size: 14px; font-weight: 600; color: var(--c-text-sub); margin-left: 2px; }
+
+@media (max-width: 1100px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .stat-grid { grid-template-columns: 1fr; } }

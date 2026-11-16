@@ -1,0 +1,42 @@
+/* 공통: 디자인 토큰 (색상/간격/그림자). 화면 전체의 색을 바꿀 때는 이 파일만 수정한다. */
+:root {
+  /* brand */
+  --c-primary: #2f6df6;
+  --c-primary-hover: #1f58d8;
+  --c-primary-soft: #e8f0ff;
+  --c-navy: #14284f;
+  --c-navy-2: #1d376a;
+  --c-navy-text: #b9c7e6;
+
+  /* surface */
+  --c-bg: #eaf1fc;
+  --c-bg-grad: linear-gradient(135deg, #e3edfd 0%, #f2f6fd 55%, #dfeafc 100%);
+  --c-card: #ffffff;
+  --c-line: #e3e9f4;
+  --c-line-strong: #cfd9ec;
+  --c-row-hover: #f5f8ff;
+
+  /* text */
+  --c-text: #1b2a4a;
+  --c-text-sub: #5c6b8a;
+  --c-text-mute: #8d99b3;
+
+  /* status */
+  --c-ok: #1a9461;       --c-ok-bg: #e2f6ec;
+  --c-warn: #a56a00;     --c-warn-bg: #fff3d1;
+  --c-review: #d9620b;   --c-review-bg: #ffe9d6;
+  --c-ng: #d33a3a;       --c-ng-bg: #fde4e4;
+  --c-info: #2f6df6;     --c-info-bg: #e8f0ff;
+
+  /* shape */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 2px 10px rgba(30, 55, 106, 0.08);
+  --shadow-lg: 0 8px 28px rgba(30, 55, 106, 0.14);
+
+  /* layout */
+  --sidebar-w: 212px;
+  --topbar-h: 60px;
+  --font: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, -apple-system, "Segoe UI", sans-serif;
+}

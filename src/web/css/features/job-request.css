@@ -1,0 +1,21 @@
+/* 개별기능[form-job]: 문서 업로드(Drag&Drop) / 작업 현황 */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 210px; padding: 28px 16px; text-align: center; cursor: pointer;
+  border: 2px dashed #a9c0ef; border-radius: var(--radius-lg); color: var(--c-text-sub);
+  background: linear-gradient(180deg, #f7faff, #eef4ff); transition: border-color .15s, background .15s, transform .15s;
+}
+.dropzone:hover, .dropzone.over { border-color: var(--c-primary); background: #e9f1ff; }
+.dropzone.over { transform: scale(1.005); }
+.dropzone-icon { width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; background: #fff; color: var(--c-primary); box-shadow: var(--shadow); }
+.dropzone-icon .icon { width: 30px; height: 30px; }
+.dropzone strong { color: var(--c-text); font-size: 16px; }
+
+.upload-opts { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; margin-bottom: 14px; }
+.upload-opts label { min-width: 280px; }
+
+.log { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.log li { padding: 9px 14px; border-radius: var(--radius); background: #f4f7fd; border: 1px solid var(--c-line); font-size: 13px; }
+.log li.ok { background: var(--c-ok-bg); border-color: #c3ead7; color: var(--c-ok); font-weight: 600; }
+.log li.ng { background: var(--c-ng-bg); border-color: #f2c6c6; color: var(--c-ng); font-weight: 600; }
+.log a { color: inherit; text-decoration: underline; cursor: pointer; }

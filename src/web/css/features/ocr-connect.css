@@ -1,0 +1,6 @@
+/* 개별기능[ocr-connect]: 설정 > OCR 서버 연결 점검 */
+.kv { display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; margin: 0 0 16px; }
+.kv dt { color: var(--c-text-sub); font-weight: 600; font-size: 13px; }
+.kv dd { margin: 0; word-break: break-all; font-family: Consolas, "D2Coding", monospace; font-size: 13px; }
+.conn-result { margin-top: 14px; }
+.conn-result:empty { display: none; }
