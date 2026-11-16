@@ -5,6 +5,8 @@
  */
 const path = require('path');
 process.env.FORMREADER_SKIP_DOTENV = '1'; // Mock 실행은 .env(실서버 설정)를 무시한다
+process.env.FORMREADER_MOCK_MODE = '1';
+process.env.FORMREADER_DATA_DIR ||= './data/mock-workspace';
 const { createApp } = require('../src/server');
 const { createConfig } = require('../src/common/app.config');
 const { createMockTextSenseServer } = require('../tests/mock/mock-textsense.server');

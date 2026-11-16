@@ -53,6 +53,10 @@ function createConfig(overrides = {}) {
 
   const config = {
     rootDir: ROOT_DIR,
+    mockMode: env.FORMREADER_MOCK_MODE === '1',
+    pdfOcrScale: Number(env.PDF_OCR_SCALE) || 2,
+    cancelPath: env.TEXTSENSE_CANCEL_PATH || '',
+    auth: { secret: env.AUTH_SECRET || '', baseURL: (env.AUTH_BASE_URL || '').replace(/\/+$/, '') },
     port: toInt(env.FORMREADER_PORT, 3000),
     // TextSense 서버가 접근 가능한 DigitalLeader 주소 (예: http://192.168.0.10:3000). 설정하면 입력 파일을 http:// 로 전달한다.
     // 'auto' 로 두면 TextSense 서버로 나가는 경로의 이 PC 주소를 작업마다 자동 감지한다. (예: FORMREADER_PUBLIC_URL=auto)
@@ -84,9 +88,6 @@ function createConfig(overrides = {}) {
       pasvMax: toInt(env.FTP_PASV_MAX, 50020),
       publicHost: env.FTP_PUBLIC_HOST || publicHostOf(env.FORMREADER_PUBLIC_URL),
     },
-    // TextSense 작업 완료 콜백(callbackUri). 켜면 완료 즉시 알림을 받는다. (상태 폴링은 안전장치로 계속 동작)
-    // 콜백은 TextSense 서버가 이 프로그램의 HTTP 주소로 POST 하므로 FORMREADER_PUBLIC_URL 이 필요하다.
-    callback: { enabled: String(env.TEXTSENSE_CALLBACK || '').toLowerCase() === 'true' },
     requestTimeoutMs: toInt(env.REQUEST_TIMEOUT_MS, 15000),
     jobTimeoutMs: toInt(env.JOB_TIMEOUT_MS, 120000),
     jobPollIntervalMs: toInt(env.JOB_POLL_INTERVAL_MS, 1000),

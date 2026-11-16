@@ -18,18 +18,19 @@ const { createMockTextSenseServer } = require('../mock/mock-textsense.server');
 
 process.env.FORMREADER_SILENT = '1';
 process.env.FORMREADER_SKIP_DOTENV = '1'; // 개발자 PC 의 .env(실서버 설정)를 읽지 않는다
+const sessions = new Map();
 
 function request(port, method, url, body) {
   return new Promise((resolve, reject) => {
     const payload = body === undefined ? null : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
-    const req = http.request({ host: '127.0.0.1', port, path: url, method, headers: payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {} }, (res) => {
+    const req = http.request({ host: '127.0.0.1', port, path: url, method, headers: { Origin: `http://localhost:${port}`, 'X-Requested-With': 'TextSense', ...(sessions.has(port) ? { Cookie: sessions.get(port) } : {}), ...(payload ? { 'Content-Type': 'application/json', 'Content-Length': payload.length } : {}) } }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf8');
         let json = null;
         try { json = JSON.parse(text); } catch (_) { /* not json */ }
-        resolve({ status: res.statusCode, json, text });
+        resolve({ status: res.statusCode, json, text, headers: res.headers });
       });
     });
     req.on('error', reject);
@@ -52,9 +53,14 @@ async function setup({ mockOpts = {}, textsense = {}, jobTimeoutMs = 5000, ftp =
     ftp: ftp ? { enabled: true, user: 'formreader', password: 'testpw1234', port: 0, pasvMin: 0, pasvMax: 0, publicHost: auto ? 'auto' : '127.0.0.1' } : { enabled: false },
   }));
   const port = await app.start();
+  const first = await api(port, 'POST', '/api/account/setup', { name: 'Test Admin', email: 'admin@example.test', password: 'Test-only-password-2026' });
+  assert.equal(first.status, 200, first.text);
+  const login = await api(port, 'POST', '/api/auth/sign-in/email', { email: 'admin@example.test', password: 'Test-only-password-2026' });
+  assert.equal(login.status, 200, login.text);
+  sessions.set(port, login.headers['set-cookie'].map((cookie) => cookie.split(';')[0]).join('; '));
   return {
     port, mock, app,
-    async close() { await app.stop(); await mock.stop(); fs.rmSync(dir, { recursive: true, force: true }); },
+    async close() { sessions.delete(port); await app.stop(); await mock.stop(); fs.rmSync(dir, { recursive: true, force: true }); },
   };
 }
 
@@ -167,13 +173,85 @@ test('PDF 업로드 → OCR → 추출값(본문/단어/표) + 서식 Key-Value'
 /** 헤더와 바이너리 본문까지 받는 GET (원본 파일 다운로드 검증용) */
 function rawGet(port, url) {
   return new Promise((resolve, reject) => {
-    http.get({ host: '127.0.0.1', port, path: url }, (res) => {
+    http.get({ host: '127.0.0.1', port, path: url, headers: sessions.has(port) ? { Cookie: sessions.get(port) } : {} }, (res) => {
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
     }).on('error', reject);
   });
 }
+
+test('검수 수정값은 원본 OCR과 분리해 저장되고 목록에 검수 상태가 유지된다', async () => {
+  const env = await setup();
+  try {
+    const form = await api(env.port, 'POST', '/api/forms', sampleForm);
+    const created = await api(env.port, 'POST', '/api/jobs', { ...upload('review.pdf'), templateId: form.json.data.id });
+    const original = await waitJob(env.port, created.json.data.id);
+    const saved = await api(env.port, 'PUT', `/api/jobs/${original.id}/review`, { values: { docNo: 'A-2026-042', amount: '2,000,000' }, confirmed: true });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.data.review.values.amount.value, '2,000,000');
+    assert.equal(saved.json.data.review.values.amount.originalValue, '1,234,000');
+    assert.equal(saved.json.data.ocrResult.values.amount.value, '1,234,000');
+    assert.equal((await api(env.port, 'GET', `/api/jobs/${original.id}`)).json.data.review.confirmed, true);
+    assert.equal((await api(env.port, 'GET', '/api/jobs')).json.data[0].review.confirmed, true);
+    const invalid = { values: { docNo: 'invalid', amount: '99999999' }, confirmed: true };
+    assert.equal((await api(env.port, 'PUT', `/api/jobs/${original.id}/review`, invalid)).status, 400);
+    const draft = await api(env.port, 'PUT', `/api/jobs/${original.id}/review`, { ...invalid, confirmed: false });
+    assert.equal(draft.status, 200);
+    assert.equal(draft.json.data.review.values.docNo.valid, false);
+    assert.equal(draft.json.data.review.confirmed, false);
+    for (const body of [{ values: { unknown: 'x' } }, { values: { docNo: 123, amount: '' } }, { values: [], confirmed: true }, null]) {
+      assert.equal((await api(env.port, 'PUT', `/api/jobs/${original.id}/review`, body)).status, 400);
+    }
+  } finally { await env.close(); }
+});
+
+test('미분류 문서는 본문을 검수하고 저장해도 엔진 결과가 바뀌지 않는다', async () => {
+  const env = await setup();
+  try {
+    const created = await api(env.port, 'POST', '/api/jobs', upload());
+    const job = await waitJob(env.port, created.json.data.id);
+    const saved = await api(env.port, 'PUT', `/api/jobs/${job.id}/review`, { text: '검수한 본문입니다.\n쉼표, 따옴표 "유지"', confirmed: true });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.data.review.text, '검수한 본문입니다.\n쉼표, 따옴표 "유지"');
+    assert.equal(saved.json.data.ocrResult.classified, false);
+    assert.equal((await api(env.port, 'GET', `/api/jobs/${job.id}/ocr`)).json.data.pages[0].content.includes('청구서'), true);
+    assert.equal((await api(env.port, 'PUT', `/api/jobs/${job.id}/review`, { text: 3 })).status, 400);
+    assert.equal((await api(env.port, 'PUT', '/api/jobs/missing/review', { text: '' })).status, 404);
+  } finally { await env.close(); }
+});
+
+test('연결 복구 후 실패한 문서를 보관된 원본으로 재처리하고 이전 기록을 유지한다', async () => {
+  const env = await setup();
+  try {
+    env.app.config.publicUrl = 'http://127.0.0.1:1';
+    const created = await api(env.port, 'POST', '/api/jobs', upload('retry.pdf'));
+    const failed = await waitJob(env.port, created.json.data.id);
+    assert.equal(failed.status, 'failed');
+    env.app.config.publicUrl = '';
+    const response = await api(env.port, 'POST', `/api/jobs/${failed.id}/retry`, {});
+    assert.equal(response.status, 200);
+    assert.notEqual(response.json.data.id, failed.id);
+    const retried = await waitJob(env.port, response.json.data.id);
+    assert.equal(retried.status, 'done', retried.error);
+    assert.equal(retried.fileName, 'retry.pdf');
+    assert.deepEqual((await rawGet(env.port, `/api/jobs/${retried.id}/file`)).body, PDF);
+    assert.equal((await api(env.port, 'GET', `/api/jobs/${failed.id}`)).json.data.status, 'failed');
+    assert.equal((await api(env.port, 'POST', `/api/jobs/${retried.id}/retry`, {})).status, 400);
+  } finally { await env.close(); }
+});
+
+test('엔진 연결 실패는 파일 저장과 구분해서 안내한다', async () => {
+  const env = await setup({ textsense: { port: 1 } });
+  try {
+    const created = await api(env.port, 'POST', '/api/jobs', upload());
+    const job = await waitJob(env.port, created.json.data.id);
+    assert.equal(job.status, 'failed');
+    assert.equal(job.errorCode, 'ENGINE_CONNECTION');
+    assert.match(job.error, /정상 저장.*VPN/);
+    assert.deepEqual((await rawGet(env.port, `/api/jobs/${job.id}/file`)).body, PDF);
+  } finally { await env.close(); }
+});
 
 test('원본 미리보기: 작업 id 로 업로드한 원본(PDF/이미지)을 변형 없이 내려준다', async () => {
   const env = await setup();
@@ -299,14 +377,17 @@ test('FORMREADER_PUBLIC_URL 설정 시 입력 파일을 http:// 로 전달하고
     const created = await api(env.port, 'POST', '/api/jobs', upload());
     const job = await waitJob(env.port, created.json.data.id);
     assert.equal(job.status, 'done', job.error); // Mock 이 http 입력을 실제로 GET 해서 검증
-    assert.equal(env.mock.requests.at(-1).inputUri, `http://127.0.0.1:${env.port}/files/input/${job.storedName}`);
+    const input = new URL(env.mock.requests.at(-1).inputUri);
+    assert.equal(input.pathname, `/files/input/${job.storedName}`);
+    assert.ok(input.searchParams.get('token'));
 
-    const file = await request(env.port, 'GET', `/files/input/${job.storedName}`);
+    const file = await request(env.port, 'GET', `${input.pathname}${input.search}`);
     assert.equal(file.status, 200);
     assert.equal(file.text, PDF.toString());
-    assert.equal((await request(env.port, 'GET', '/files/input/nope.pdf')).status, 404);
-    assert.equal((await request(env.port, 'GET', '/files/input/..%2f..%2fpackage.json')).status, 404);
-    assert.equal((await request(env.port, 'GET', '/files/input/')).status, 404);
+    assert.equal((await request(env.port, 'GET', `/files/input/${job.storedName}`)).status, 403);
+    assert.equal((await request(env.port, 'GET', '/files/input/nope.pdf')).status, 403);
+    assert.equal((await request(env.port, 'GET', '/files/input/..%2f..%2fpackage.json')).status, 403);
+    assert.equal((await request(env.port, 'GET', '/files/input/')).status, 403);
   } finally { await env.close(); }
 });
 
@@ -336,7 +417,9 @@ test('주소 자동 감지(auto): VPN 처럼 주소가 바뀌어도 작업마다
     const job = await waitJob(env.port, created.json.data.id);
     assert.equal(job.status, 'done', job.error);
     const sent = env.mock.requests.at(-1);
-    assert.equal(sent.inputUri, `http://127.0.0.1:${env.port}/files/input/${job.storedName}`);
+    const input = new URL(sent.inputUri);
+    assert.equal(input.origin + input.pathname, `http://127.0.0.1:${env.port}/files/input/${job.storedName}`);
+    assert.ok(input.searchParams.get('token'));
     assert.match(sent.outputUri, new RegExp(`^ftp://formreader:testpw1234@127\\.0\\.0\\.1:${env.app.config.ftp.port}/`));
   } finally { await env.close(); }
 });
@@ -423,7 +506,7 @@ test('서식 CRUD + 웹 화면/정적 파일 + 헬스체크', async () => {
 
     const html = await request(env.port, 'GET', '/');
     assert.equal(html.status, 200);
-    assert.match(html.text, /DigitalLeader v1\.0/);
+    assert.match(html.text, /TextSense · Document Workspace/);
     assert.equal((await request(env.port, 'GET', '/..%2f..%2fpackage.json')).status, 404);
   } finally { await env.close(); }
 });

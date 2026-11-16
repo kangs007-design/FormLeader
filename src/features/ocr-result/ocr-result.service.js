@@ -1,6 +1,12 @@
-'use strict';
+"use strict";
 /** 개별기능[ocr-result]: OCR 결과 JSON 을 화면용 추출값으로 변환하고, 서식 정책을 적용한다 */
-const { normalizeOcr, buildView, summarize, extractByTemplate, classifyTemplate } = require('./ocr-result.extractor');
+const {
+  normalizeOcr,
+  buildView,
+  summarize,
+  extractByTemplate,
+  classifyTemplate,
+} = require("./ocr-result.extractor");
 
 class OcrResultService {
   constructor({ formTemplateService }) {
@@ -21,15 +27,36 @@ class OcrResultService {
   async apply(ocrRaw, templateId, opts) {
     const ocr = normalizeOcr(ocrRaw, opts);
     const summary = summarize(ocr);
-    const template = templateId
-      ? await this.formTemplateService.get(templateId)
-      : classifyTemplate(await this.formTemplateService.list(), ocr);
+    const template =
+      opts?.template ||
+      (templateId
+        ? await this.formTemplateService.get(templateId)
+        : classifyTemplate(await this.formTemplateService.list(), ocr));
 
-    if (!template) { // 미분류: OCR 추출값만 제공 (서식 미적용)
-      return { ...summary, classified: false, templateId: null, docType: null, values: {}, needsReview: true };
+    if (!template) {
+      // 미분류: OCR 추출값만 제공 (서식 미적용)
+      return {
+        ...summary,
+        classified: false,
+        templateId: null,
+        docType: null,
+        values: {},
+        needsReview: true,
+      };
     }
-    const { values, needsReview } = extractByTemplate(template, ocr);
-    return { ...summary, classified: true, templateId: template.id, docType: template.docType, values, needsReview };
+    const { values, groups, needsReview } = extractByTemplate(template, ocr, {
+      useEngineFields: opts?.useEngineFields !== false,
+    });
+    return {
+      ...summary,
+      classified: true,
+      templateId: template.id || null,
+      templateVersion: template.version || 1,
+      docType: template.docType,
+      values,
+      groups,
+      needsReview,
+    };
   }
 }
 

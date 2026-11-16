@@ -1,4 +1,12 @@
 .env
+.env.*
+!.env.example
 data/*
 !data/.gitkeep
 node_modules
+.codex-backup/
+artifacts/
+*.ovpn
+*.sqlite
+*.sqlite-*
+*.log

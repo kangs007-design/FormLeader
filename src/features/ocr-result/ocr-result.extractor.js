@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 /**
  * 개별기능[ocr-result]: TextSense 결과 JSON 파싱 + 서식 기반 Key-Value 추출/검증 (순수 함수)
  *
@@ -10,10 +10,10 @@
  *   word 텍스트 = recognition.content
  */
 
-const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 function elementText(el) {
-  const t = (el.recognition && el.recognition.content) ?? el.content ?? '';
+  const t = (el.recognition && el.recognition.content) ?? el.content ?? "";
   return String(t).trim();
 }
 
@@ -23,13 +23,22 @@ function toRect(points) {
   const xs = points.map((p) => num(p && p[0])).filter((n) => n !== null);
   const ys = points.map((p) => num(p && p[1])).filter((n) => n !== null);
   if (!xs.length || !ys.length) return null;
-  return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
+  return {
+    x1: Math.min(...xs),
+    y1: Math.min(...ys),
+    x2: Math.max(...xs),
+    y2: Math.max(...ys),
+  };
 }
 
 /** 인식 신뢰도: recognition.confidence(숫자 또는 배열 평균) → 없으면 detection.confidence */
 function elementConfidence(el) {
   const rc = el.recognition && el.recognition.confidence;
-  let c = Array.isArray(rc) ? (rc.length ? rc.reduce((a, b) => a + b, 0) / rc.length : null) : num(rc);
+  let c = Array.isArray(rc)
+    ? rc.length
+      ? rc.reduce((a, b) => a + b, 0) / rc.length
+      : null
+    : num(rc);
   if (!c) c = num(el.detection && el.detection.confidence);
   return c === null ? null : Math.round(c * 1000) / 1000;
 }
@@ -37,10 +46,13 @@ function elementConfidence(el) {
 /** element 트리에서 word 를 평탄화한다. (textline/cell/table 은 하위 texts/cells 를 순회) */
 function collectWords(elements, out = []) {
   for (const el of elements || []) {
-    if (!el || typeof el !== 'object') continue;
-    const children = el.type === 'table' ? el.cells : el.texts;
-    if (Array.isArray(children) && children.length) { collectWords(children, out); continue; }
-    if (el.type === 'table' || el.type === 'cell') continue; // 내용 없는 표/셀
+    if (!el || typeof el !== "object") continue;
+    const children = el.type === "table" ? el.cells : el.texts;
+    if (Array.isArray(children) && children.length) {
+      collectWords(children, out);
+      continue;
+    }
+    if (el.type === "table" || el.type === "cell") continue; // 내용 없는 표/셀
     const text = elementText(el);
     const rect = toRect(el.points);
     if (text && rect) out.push({ text, ...rect, conf: elementConfidence(el) });
@@ -48,65 +60,52 @@ function collectWords(elements, out = []) {
   return out;
 }
 
-/** 병합 칸 수: 값이 없거나 0 이하이면 1 (병합 없음) */
-const span = (v) => { const n = num(v); return n && n > 1 ? Math.floor(n) : 1; };
-
-/**
- * 표 셀 위치/병합. 명세 표의 키 이름 철자가 `colum_index`/`colum_span` 이라 정상 철자(column_*)와 함께 모두 받는다.
- * layout: 병합을 반영한 행 목록 [[{ text, rowSpan, colSpan }]] - 병합으로 가려지는 칸은 생략, 비어 있는 칸은 빈 셀로 채운다.
- */
 function collectTables(elements) {
-  return (elements || []).filter((e) => e && e.type === 'table').map((t) => {
-    const cells = (t.cells || []).map((c) => ({
-      row: num(c.row_index) ?? 0,
-      col: num(c.column_index) ?? num(c.colum_index) ?? 0,
-      rowSpan: span(c.row_span),
-      colSpan: span(c.column_span ?? c.colum_span),
-      text: String(c.content ?? (c.texts || []).map(elementText).join(' ')).trim(),
-    }));
-    const rows = Math.max(num(t.num_rows) || 0, ...cells.map((c) => c.row + c.rowSpan), 0);
-    const cols = Math.max(num(t.num_cols) || 0, ...cells.map((c) => c.col + c.colSpan), 0);
-    const grid = Array.from({ length: rows }, () => Array(cols).fill(''));
-    const origin = Array.from({ length: rows }, () => Array(cols).fill(null)); // 칸 → 시작 셀
-    const covered = Array.from({ length: rows }, () => Array(cols).fill(false)); // 병합으로 가려진 칸
-    for (const c of cells) {
-      grid[c.row][c.col] = c.text;
-      origin[c.row][c.col] = c;
-      for (let r = c.row; r < Math.min(rows, c.row + c.rowSpan); r++) {
-        for (let k = c.col; k < Math.min(cols, c.col + c.colSpan); k++) if (r !== c.row || k !== c.col) covered[r][k] = true;
-      }
-    }
-    const layout = grid.map((row, r) => row.reduce((out, _, k) => {
-      if (covered[r][k]) return out;
-      const c = origin[r][k];
-      out.push(c ? { text: c.text, rowSpan: Math.min(c.rowSpan, rows - r), colSpan: Math.min(c.colSpan, cols - k) } : { text: '', rowSpan: 1, colSpan: 1 });
-      return out;
-    }, []));
-    return { rows, cols, grid, layout };
-  });
-}
-
-/** 페이지 부가 정보 (명세: alignment / classification / description / flags / version) - 값이 없으면 null */
-function pageMeta(p) {
-  const pick = (o, ...keys) => (o && typeof o === 'object' ? Object.fromEntries(keys.map((k) => [k, o[k] ?? null])) : null);
-  const classification = pick(p.classification, 'class', 'confidence');
-  const alignment = pick(p.alignment, 'confidence', 'reference');
-  return {
-    classification: classification && (classification.class !== null || classification.confidence !== null) ? classification : null,
-    alignment: alignment && (alignment.confidence !== null || alignment.reference !== null) ? alignment : null,
-    description: typeof p.description === 'string' && p.description.trim() ? p.description.trim() : null,
-    flags: p.flags ?? null,
-    version: typeof p.version === 'string' ? p.version : null,
-  };
+  return (elements || [])
+    .filter((e) => e && e.type === "table")
+    .map((t) => {
+      const cells = (t.cells || []).map((c) => ({
+        row: num(c.row_index) ?? 0,
+        col: num(c.column_index) ?? 0,
+        text: String(
+          c.content ??
+            collectWords(c.texts || [])
+              .map((w) => w.text)
+              .join(" "),
+        ).trim(),
+        rect: toRect(c.points),
+      }));
+      const rows = Math.max(
+        num(t.num_rows) || 0,
+        ...cells.map((c) => c.row + 1),
+        0,
+      );
+      const cols = Math.max(
+        num(t.num_cols) || 0,
+        ...cells.map((c) => c.col + 1),
+        0,
+      );
+      const grid = Array.from({ length: rows }, () => Array(cols).fill(""));
+      for (const c of cells) grid[c.row][c.col] = c.text;
+      return { rows, cols, grid, cells, rect: toRect(t.points) };
+    });
 }
 
 /** SearchAPI 결과(fields) → [{ name, text, items:[{text, conf}] }] */
 function collectFields(fields) {
-  return Object.entries(fields || {}).map(([name, list]) => {
+  return Object.entries(fields || {}).map(([name, entry]) => {
+    const list = Array.isArray(entry) ? entry : entry?.values || [];
     const items = collectWords(Array.isArray(list) ? list : []);
-    const rawItems = items.length ? items.map(({ text, conf }) => ({ text, conf }))
-      : (Array.isArray(list) ? list : []).map((e) => ({ text: elementText(e), conf: elementConfidence(e) })).filter((i) => i.text);
-    return { name, text: rawItems.map((i) => i.text).join(' '), items: rawItems };
+    const rawItems = items.length
+      ? items.map(({ text, conf }) => ({ text, conf }))
+      : (Array.isArray(list) ? list : [])
+          .map((e) => ({ text: elementText(e), conf: elementConfidence(e) }))
+          .filter((i) => i.text);
+    return {
+      name,
+      text: rawItems.map((i) => i.text).join(" "),
+      items: rawItems,
+    };
   });
 }
 
@@ -115,71 +114,151 @@ function joinWords(words) {
   const sorted = [...words].sort((a, b) => a.cy - b.cy);
   const lines = [];
   for (const w of sorted) {
-    const line = lines.find((l) => Math.abs(l.cy - w.cy) <= Math.max(l.h, w.h) / 2);
-    if (line) { line.words.push(w); line.cy = (line.cy * (line.words.length - 1) + w.cy) / line.words.length; }
-    else lines.push({ cy: w.cy, h: w.h, words: [w] });
+    const line = lines.find(
+      (l) => Math.abs(l.cy - w.cy) <= Math.max(l.h, w.h) / 2,
+    );
+    if (line) {
+      line.words.push(w);
+      line.cy = (line.cy * (line.words.length - 1) + w.cy) / line.words.length;
+    } else lines.push({ cy: w.cy, h: w.h, words: [w] });
   }
-  return lines.sort((a, b) => a.cy - b.cy)
-    .map((l) => l.words.sort((a, b) => a.cx - b.cx).map((w) => w.text).join(' '))
-    .join(' ').trim();
+  return lines
+    .sort((a, b) => a.cy - b.cy)
+    .map((l) =>
+      l.words
+        .sort((a, b) => a.cx - b.cx)
+        .map((w) => w.text)
+        .join(" "),
+    )
+    .join(" ")
+    .trim();
 }
 
 /**
  * 결과 JSON → 정규화 모델
  * @param raw TextSense 결과 JSON
  * @param opts.pageSize { width, height } 알고 있는 페이지 픽셀 크기(이미지 헤더 등). 없으면 단어 분포로 추정한다.
- * @param opts.pageMap  요청한 원본 페이지 번호 목록. pages 옵션으로 일부 페이지만 요청하면 결과의 pages_1 이 원본 1페이지가 아니므로
- *                      pages_N → pageMap[N-1] 로 원본 페이지 번호를 복원한다. (없으면 pages_N 의 N 을 그대로 사용)
- * @returns { version, pages:[{ page, content, orientation, width, height, sizeSource, words, tables, fields, meta }] }
+ * @returns { pages:[{ page, content, orientation, width, height, sizeSource, words, tables, fields }] }
  */
-function normalizeOcr(raw, { pageSize = null, pageMap = null } = {}) {
+function normalizeOcr(raw, { pageSize = null, pageSizes = [] } = {}) {
   const dict = raw && raw.document && raw.document.pages;
-  if (!dict || typeof dict !== 'object') throw new Error('OCR 결과에 document.pages 가 없습니다. (TextSense 결과 JSON 형식이 아님)');
+  if (!dict || typeof dict !== "object")
+    throw new Error(
+      "OCR 결과에 document.pages 가 없습니다. (TextSense 결과 JSON 형식이 아님)",
+    );
 
   const pages = Object.entries(dict)
-    .map(([key, p]) => ({ key, p, no: parseInt(String(key).replace(/\D+/g, ''), 10) }))
+    .map(([key, p]) => ({
+      key,
+      p,
+      no: parseInt(String(key).replace(/\D+/g, ""), 10),
+    }))
     .sort((a, b) => (a.no || 0) - (b.no || 0))
     .map(({ p, no }, i) => {
-      const order = no || i + 1; // 결과 내 순번 (1부터)
-      const sourcePage = Array.isArray(pageMap) && pageMap[order - 1] ? pageMap[order - 1] : order;
       const words = collectWords(p.elements);
-      let width = pageSize ? pageSize.width : 0;
-      let height = pageSize ? pageSize.height : 0;
-      const sizeSource = width && height ? 'image' : 'estimated';
-      if (!width || !height) { // 크기를 모르면 단어가 차지하는 최대 범위로 추정
+      const known = pageSizes[i] || pageSize;
+      let width =
+        num(p.width) ||
+        num(p.image_width) ||
+        num(p.size?.width) ||
+        known?.width ||
+        0;
+      let height =
+        num(p.height) ||
+        num(p.image_height) ||
+        num(p.size?.height) ||
+        known?.height ||
+        0;
+      const sizeSource =
+        width && height
+          ? p.width || p.image_width || p.size?.width
+            ? "engine"
+            : known?.source || "image"
+          : "estimated";
+      if (!width || !height) {
+        // 크기를 모르면 단어가 차지하는 최대 범위로 추정
         width = Math.max(1, ...words.map((w) => w.x2));
         height = Math.max(1, ...words.map((w) => w.y2));
       }
-      const norm = words.map((w) => ({ ...w, cx: (w.x1 + w.x2) / 2 / width, cy: (w.y1 + w.y2) / 2 / height, h: (w.y2 - w.y1) / height }));
-      const content = typeof p.content === 'string' && p.content.trim() ? p.content.trim() : joinLines(norm);
-      return { page: sourcePage, content, orientation: num(p.orientation) ?? 0, width, height, sizeSource, words: norm, tables: collectTables(p.elements), fields: collectFields(p.fields), meta: pageMeta(p) };
+      const norm = words.map((w) => ({
+        ...w,
+        cx: (w.x1 + w.x2) / 2 / width,
+        cy: (w.y1 + w.y2) / 2 / height,
+        h: (w.y2 - w.y1) / height,
+      }));
+      const content =
+        typeof p.content === "string" && p.content.trim()
+          ? p.content.trim()
+          : joinLines(norm);
+      const units = collectUnits(p.elements).map((u) => ({
+        ...u,
+        cx: (u.x1 + u.x2) / 2 / width,
+        cy: (u.y1 + u.y2) / 2 / height,
+        h: (u.y2 - u.y1) / height,
+      }));
+      return {
+        page: no || i + 1,
+        content,
+        orientation: num(p.orientation) ?? 0,
+        width,
+        height,
+        sizeSource,
+        words: norm,
+        units,
+        tables: collectTables(p.elements),
+        fields: collectFields(p.fields),
+      };
     });
-  const version = raw.document && typeof raw.document.version === 'string' ? raw.document.version : null;
-  return { version, pages };
+  return { pages };
 }
 
 /** content 가 없을 때 줄 단위로 텍스트 구성 */
 function joinLines(words) {
   const lines = [];
   for (const w of [...words].sort((a, b) => a.cy - b.cy)) {
-    const line = lines.find((l) => Math.abs(l.cy - w.cy) <= Math.max(l.h, w.h) / 2);
-    if (line) line.words.push(w); else lines.push({ cy: w.cy, h: w.h, words: [w] });
+    const line = lines.find(
+      (l) => Math.abs(l.cy - w.cy) <= Math.max(l.h, w.h) / 2,
+    );
+    if (line) line.words.push(w);
+    else lines.push({ cy: w.cy, h: w.h, words: [w] });
   }
-  return lines.map((l) => l.words.sort((a, b) => a.cx - b.cx).map((w) => w.text).join(' ')).join('\n');
+  return lines
+    .map((l) =>
+      l.words
+        .sort((a, b) => a.cx - b.cx)
+        .map((w) => w.text)
+        .join(" "),
+    )
+    .join("\n");
 }
 
 function fullText(ocr) {
-  return ocr.pages.map((p) => `${p.content}\n${p.words.map((w) => w.text).join(' ')}`).join('\n');
+  return ocr.pages
+    .map((p) => `${p.content}\n${p.words.map((w) => w.text).join(" ")}`)
+    .join("\n");
 }
 
 /** 화면 표시용: 정규화 좌표(cx,cy,h)를 제외한 페이지별 추출 결과 */
 function buildView(ocr) {
   return {
-    version: ocr.version || null,
     pages: ocr.pages.map((p) => ({
-      page: p.page, content: p.content, orientation: p.orientation, width: p.width, height: p.height, sizeSource: p.sizeSource,
-      words: p.words.map(({ text, x1, y1, x2, y2, conf }) => ({ text, x1, y1, x2, y2, conf })),
-      tables: p.tables, fields: p.fields, meta: p.meta,
+      page: p.page,
+      content: p.content,
+      orientation: p.orientation,
+      width: p.width,
+      height: p.height,
+      sizeSource: p.sizeSource,
+      words: p.words.map(({ text, x1, y1, x2, y2, conf }) => ({
+        text,
+        x1,
+        y1,
+        x2,
+        y2,
+        conf,
+      })),
+      tables: p.tables,
+      fields: p.fields,
+      units: p.units,
     })),
   };
 }
@@ -192,21 +271,25 @@ function summarize(ocr) {
     wordCount: ocr.pages.reduce((n, p) => n + p.words.length, 0),
     tableCount: ocr.pages.reduce((n, p) => n + p.tables.length, 0),
     fieldCount: ocr.pages.reduce((n, p) => n + p.fields.length, 0),
-    preview: first ? first.content.replace(/\s+/g, ' ').slice(0, 120) : '',
+    preview: first ? first.content.replace(/\s+/g, " ").slice(0, 120) : "",
   };
 }
 
 function validateValue(key, value) {
   if (key.exceptValues && key.exceptValues.includes(value)) return []; // 예외키: 검증 제외
+  if (key.exceptPattern && new RegExp(key.exceptPattern).test(value)) return [];
   const errors = [];
-  if (key.required && !value) errors.push('필수값 누락');
+  if (key.required && !value) errors.push("필수값 누락");
   if (!value) return errors;
-  if (key.pattern && !new RegExp(key.pattern).test(value)) errors.push(`형식 불일치(${key.pattern})`);
+  if (key.pattern && !new RegExp(key.pattern).test(value))
+    errors.push(`형식 불일치(${key.pattern})`);
+  if (key.pattern2 && !new RegExp(key.pattern2).test(value))
+    errors.push(`보조 형식 불일치(${key.pattern2})`);
   const hasMin = key.min !== null && key.min !== undefined;
   const hasMax = key.max !== null && key.max !== undefined;
   if (hasMin || hasMax) {
-    const n = Number(value.replace(/[,\s원]/g, ''));
-    if (!Number.isFinite(n)) errors.push('숫자 아님');
+    const n = Number(value.replace(/[,\s원]/g, ""));
+    if (!Number.isFinite(n)) errors.push("숫자 아님");
     else {
       if (hasMin && n < key.min) errors.push(`최소값(${key.min}) 미만`);
       if (hasMax && n > key.max) errors.push(`최대값(${key.max}) 초과`);
@@ -216,19 +299,34 @@ function validateValue(key, value) {
 }
 
 /** 서식의 각 Key 영역에서 값을 추출하고 검증한다. */
-function extractByTemplate(template, ocr) {
+function extractByTemplate(template, ocr, { useEngineFields = true } = {}) {
   const values = {};
   let needsReview = false;
-  for (const key of template.keys) {
+  for (const key of template.keys || []) {
     const page = ocr.pages.find((p) => p.page === (key.page || 1));
-    const { x, y, w, h } = key.rect;
-    const inside = page ? page.words.filter((wd) => wd.cx >= x && wd.cx <= x + w && wd.cy >= y && wd.cy <= y + h) : [];
-    const value = joinWords(inside);
+    const field = page?.fields.find((f) => f.name === key.name);
+    const value = page
+      ? useEngineFields && key.searchType && field
+        ? field.text
+        : selectValue(key, page)
+      : "";
     const errors = validateValue(key, value);
     if (errors.length && (key.verify || key.required)) needsReview = true;
-    values[key.name] = { value, valid: errors.length === 0, errors, verify: !!key.verify };
+    values[key.name] = {
+      value,
+      valid: errors.length === 0,
+      errors,
+      verify: !!key.verify,
+    };
   }
-  return { values, needsReview };
+  const groups = {};
+  for (const group of template.groups || []) {
+    const result = extractGroup(group, ocr);
+    groups[group.name] = result;
+    if (result.rows.some((r) => Object.values(r.values).some((v) => !v.valid)))
+      needsReview = true;
+  }
+  return { values, groups, needsReview };
 }
 
 /** templateId 가 없을 때: 키워드가 모두 포함된 서식 중 키워드 수가 가장 많은 것을 선택 (없으면 null = 미분류) */
@@ -236,10 +334,170 @@ function classifyTemplate(templates, ocr) {
   const text = fullText(ocr).toLowerCase();
   let best = null;
   for (const t of templates) {
-    if (!t.keywords || !t.keywords.length) continue;
-    if (t.keywords.every((k) => text.includes(k.toLowerCase())) && (!best || t.keywords.length > best.keywords.length)) best = t;
+    const rule = t.documentRule || {};
+    if (rule.exceptPattern && new RegExp(rule.exceptPattern, "i").test(text))
+      continue;
+    if ((!t.keywords || !t.keywords.length) && !rule.pattern) continue;
+    if (
+      (t.keywords || []).every((k) => text.includes(k.toLowerCase())) &&
+      (!rule.pattern || new RegExp(rule.pattern, "i").test(text)) &&
+      (!best || (t.keywords || []).length > (best.keywords || []).length)
+    )
+      best = t;
   }
   return best;
 }
 
-module.exports = { normalizeOcr, buildView, summarize, extractByTemplate, classifyTemplate, validateValue, joinWords, collectWords };
+function collectUnits(elements, out = []) {
+  for (const el of elements || []) {
+    if (!el) continue;
+    const rect = toRect(el.points);
+    if (rect && ["textline", "cell"].includes(el.type))
+      out.push({
+        type: el.type,
+        text:
+          elementText(el) ||
+          collectWords(el.texts || [])
+            .map((w) => w.text)
+            .join(" "),
+        ...rect,
+      });
+    collectUnits(el.type === "table" ? el.cells : el.texts, out);
+  }
+  return out;
+}
+function insideRect(word, r) {
+  return (
+    word.cx >= r.x &&
+    word.cx <= r.x + r.w &&
+    word.cy >= r.y &&
+    word.cy <= r.y + r.h
+  );
+}
+function lineGroups(words) {
+  const lines = [];
+  for (const w of [...words].sort((a, b) => a.cy - b.cy || a.cx - b.cx)) {
+    const line = lines.find(
+      (l) => Math.abs(l.cy - w.cy) <= Math.max(l.h, w.h) * 0.6,
+    );
+    if (line) line.words.push(w);
+    else lines.push({ cy: w.cy, h: w.h, words: [w] });
+  }
+  return lines;
+}
+function selectValue(key, page) {
+  const words = page.words.filter((w) => insideRect(w, key.rect));
+  if (key.searchType) {
+    if (key.searchType === "FindRegion") return joinWords(words);
+    const anchor = String(key.searchKey || "");
+    if (!anchor) return "";
+    if (key.searchType === "FindWord")
+      return joinWords(page.words.filter((w) => w.text.includes(anchor)));
+    if (key.searchType === "FindLine")
+      return joinWords(
+        lineGroups(page.words).find((l) =>
+          l.words.some((w) => w.text.includes(anchor)),
+        )?.words || [],
+      );
+    for (const table of page.tables) {
+      const cell = table.cells.find((c) => c.text.includes(anchor));
+      if (!cell) continue;
+      return table.cells
+        .filter((c) =>
+          key.searchType === "FindRow"
+            ? c.row === cell.row
+            : key.searchType === "FindRightRow"
+              ? c.row === cell.row && c.col > cell.col
+              : key.searchType === "FindCol"
+                ? c.col === cell.col
+                : c.col === cell.col && c.row > cell.row,
+        )
+        .sort((a, b) => a.row - b.row || a.col - b.col)
+        .map((c) => c.text)
+        .join(" ");
+    }
+    return "";
+  }
+  if (key.mode === "word")
+    return (
+      [...words].sort((a, b) => a.cy - b.cy || a.cx - b.cx)[key.wordIndex || 0]
+        ?.text || ""
+    );
+  if (key.mode === "line") {
+    const lines = lineGroups(words);
+    return key.lineIndex === undefined
+      ? lines.map((l) => joinWords(l.words)).join("\n")
+      : joinWords(lines[key.lineIndex]?.words || []);
+  }
+  if (key.mode === "cell") {
+    if (key.row !== undefined && key.column !== undefined)
+      return (
+        page.tables[key.tableIndex || 0]?.grid[key.row]?.[key.column] || ""
+      );
+    const cells = (page.units || []).filter(
+      (u) => u.type === "cell" && insideRect(u, key.rect),
+    );
+    return cells.map((c) => c.text).join("\n");
+  }
+  return joinWords(words);
+}
+function extractGroup(group, ocr) {
+  const rows = [];
+  for (const page of ocr.pages.filter((p) =>
+    group.allPages ? p.page >= group.page : p.page === group.page,
+  )) {
+    const words = page.words.filter((w) => insideRect(w, group.rect));
+    let data;
+    if (group.source === "table")
+      data = (page.tables[group.tableIndex || 0]?.grid || [])
+        .slice(group.skipRows || 0)
+        .map((cells) => ({ cells }));
+    else {
+      let lines;
+      if (group.rowHeight > 0) {
+        const bins = new Map();
+        for (const w of words) {
+          const n = Math.floor((w.cy - group.rect.y) / group.rowHeight);
+          if (!bins.has(n)) bins.set(n, []);
+          bins.get(n).push(w);
+        }
+        lines = [...bins]
+          .sort((a, b) => a[0] - b[0])
+          .map(([, ws]) => ({ words: ws }));
+      } else lines = lineGroups(words);
+      data = lines.slice(group.skipRows || 0);
+    }
+    for (const row of data.slice(0, 10000)) {
+      const values = {};
+      group.columns.forEach((col, index) => {
+        const value = row.cells
+          ? String(row.cells[col.column ?? index] || "")
+          : joinWords(
+              row.words.filter(
+                (w) =>
+                  w.cx >= group.rect.x + col.rect.x * group.rect.w &&
+                  w.cx <=
+                    group.rect.x + (col.rect.x + col.rect.w) * group.rect.w,
+              ),
+            );
+        const errors = validateValue(col, value);
+        values[col.name] = { value, valid: !errors.length, errors };
+      });
+      if (Object.values(values).some((v) => v.value))
+        rows.push({ page: page.page, values });
+    }
+  }
+  return { columns: group.columns.map((c) => c.name), rows };
+}
+module.exports = {
+  normalizeOcr,
+  buildView,
+  summarize,
+  extractByTemplate,
+  classifyTemplate,
+  validateValue,
+  joinWords,
+  collectWords,
+  selectValue,
+  extractGroup,
+};

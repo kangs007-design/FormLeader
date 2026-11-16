@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DigitalLeader v1.0</title>
+  <meta name="theme-color" content="#176b53">
+  <title>TextSense · Document Workspace</title>
   <!-- 공통 스타일 -->
   <link rel="stylesheet" href="/css/common/tokens.css">
   <link rel="stylesheet" href="/css/common/base.css">
@@ -15,6 +16,9 @@
   <link rel="stylesheet" href="/css/features/form-template.css">
   <link rel="stylesheet" href="/css/features/ocr-result.css">
   <link rel="stylesheet" href="/css/features/ocr-connect.css">
+  <link rel="stylesheet" href="/css/workspace.css">
+  <link rel="stylesheet" href="/css/features/account.css">
+  <link rel="stylesheet" href="/css/features/advanced.css">
 </head>
 <body>
   <!-- 아이콘 스프라이트 -->
@@ -40,150 +44,157 @@
     <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><path d="M8 8h11v13H8z M5 16H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3.5L3 10 M3 4v6h6 M4 13a8 8 0 0 0 14.9 3.5L21 14 M21 20v-6h-6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14 M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4 M12 17h.01"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5h6l2 2h10v13H3z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M16 3a4 4 0 0 1 0 8 M22 21v-2a4 4 0 0 0-3-3.9"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H4v16h5 M13 8l4 4-4 4 M8 12h13"/></symbol>
   </svg>
 
-  <div class="app">
+  <a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+  <div class="app" id="workspace-app" hidden>
     <!-- 사이드바 -->
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></div>
-        <div class="brand-name">DigitalLeader<small>v1.0</small></div>
+        <div class="brand-mark"><svg class="icon"><use href="#i-scan"/></svg></div>
+        <div class="brand-name">TextSense<span class="brand-dot">.</span><small>DOCUMENT WORKSPACE</small></div>
       </div>
-      <nav class="nav" id="tabs">
-        <button class="nav-item active" data-tab="dashboard"><svg class="icon"><use href="#i-dashboard"/></svg><span>대시보드</span></button>
-        <button class="nav-item" data-tab="job-request"><svg class="icon"><use href="#i-upload"/></svg><span>문서 처리</span></button>
-        <button class="nav-item" data-tab="job-status"><svg class="icon"><use href="#i-list"/></svg><span>작업 현황</span></button>
-        <button class="nav-item" data-tab="form-template"><svg class="icon"><use href="#i-template"/></svg><span>서식 관리</span></button>
-        <button class="nav-item" data-tab="ocr-result"><svg class="icon"><use href="#i-scan"/></svg><span>문서 확인</span></button>
-        <button class="nav-item" data-tab="ocr-connect"><svg class="icon"><use href="#i-gear"/></svg><span>설정</span></button>
+      <span class="nav-caption">WORKSPACE</span>
+      <nav class="nav" id="tabs" aria-label="주 메뉴">
+        <button class="nav-item active" data-tab="dashboard" aria-label="워크스페이스"><svg class="icon"><use href="#i-dashboard"/></svg><span>워크스페이스</span></button>
+        <button class="nav-item" data-tab="job-request" aria-label="문서 업로드"><svg class="icon"><use href="#i-upload"/></svg><span>문서 업로드</span><span class="nav-plus">+</span></button>
+        <button class="nav-item" data-tab="job-status" aria-label="전체 문서"><svg class="icon"><use href="#i-folder"/></svg><span>전체 문서</span><span id="nav-job-count" class="nav-count">0</span></button>
+        <button class="nav-item" data-tab="ocr-result" aria-label="문서 검수"><svg class="icon"><use href="#i-scan"/></svg><span>문서 검수</span></button>
+        <button class="nav-item" data-tab="compare" aria-label="문서 비교"><svg class="icon"><use href="#i-doc"/></svg><span>문서 비교</span></button>
+        <span class="nav-caption nav-caption-inner" data-admin-only hidden>MANAGE</span>
+        <button class="nav-item" data-tab="form-template" aria-label="서식 라이브러리" data-admin-only hidden><svg class="icon"><use href="#i-template"/></svg><span>서식 라이브러리</span></button>
+        <button class="nav-item" data-tab="users" aria-label="사용자 관리" data-admin-only hidden><svg class="icon"><use href="#i-users"/></svg><span>사용자 관리</span></button>
+        <button class="nav-item" data-tab="ocr-connect" aria-label="연결 설정" data-admin-only hidden><svg class="icon"><use href="#i-gear"/></svg><span>연결 설정</span></button>
+        <button class="nav-item" data-tab="operations" aria-label="운영 관리" data-admin-only hidden><svg class="icon"><use href="#i-gear"/></svg><span>운영 관리</span></button>
       </nav>
-      <div class="sidebar-foot">AI OCR · TextSense 2.0</div>
+      <div class="sidebar-bottom"><div class="sidebar-tip"><svg class="icon"><use href="#i-template"/></svg><strong>반복 문서는 서식으로</strong><p>추출 영역을 한 번 설정하면<br>같은 문서를 빠르게 처리합니다.</p><button data-goto="form-template">서식 만들기 <svg class="icon"><use href="#i-arrow"/></svg></button></div><button class="sidebar-help" id="help-open"><svg class="icon"><use href="#i-help"/></svg><span>사용 가이드</span><kbd>?</kbd></button><div class="sidebar-foot"><span class="engine-dot"></span> Powered by TextSense AI OCR</div></div>
     </aside>
 
     <div class="main">
       <!-- 상단바 -->
       <header class="topbar">
+        <div class="breadcrumb"><svg class="icon"><use href="#i-folder"/></svg><span>Workspace</span><span class="crumb-slash">/</span><strong id="current-page">워크스페이스</strong></div>
         <div class="search">
           <svg class="icon"><use href="#i-search"/></svg>
-          <input id="global-search" type="search" placeholder="파일명, 문서 유형을 검색하세요." autocomplete="off">
+          <input id="global-search" type="search" placeholder="문서 검색" aria-label="문서 검색" autocomplete="off"><kbd>Ctrl K</kbd>
         </div>
-        <button class="icon-btn" title="알림" aria-label="알림"><svg class="icon"><use href="#i-bell"/></svg></button>
-        <div class="avatar" title="사용자">FR</div>
+        <span class="topbar-divider"></span><span id="today-label" class="today-label"></span>
+        <div class="user-chip"><button id="profile-open" class="profile-trigger" aria-label="내 계정"><span class="avatar" id="current-user-avatar"></span><span class="user-meta"><strong id="current-user-name"></strong><small id="current-user-role"></small></span><svg class="icon"><use href="#i-chev-r"/></svg></button><button id="logout-button" class="icon-btn" title="로그아웃" aria-label="로그아웃"><svg class="icon"><use href="#i-logout"/></svg></button></div>
       </header>
 
-      <main class="content">
+      <main class="content" id="main-content" tabindex="-1">
+        <div id="mode-notice" class="mode-notice" hidden><svg class="icon"><use href="#i-alert"/></svg><span><strong>샘플 모드</strong> · 업로드한 파일을 실제로 인식하지 않고 고정된 샘플 결과를 보여줍니다.</span></div>
         <!-- 대시보드 -->
         <section id="tab-dashboard" class="tab active">
           <div class="page-head">
-            <div><h2>문서 처리 현황</h2><p class="sub">업로드한 문서의 OCR 처리 상태를 한눈에 확인합니다.</p></div>
-            <button class="primary" data-goto="job-request"><svg class="icon"><use href="#i-plus"/></svg>문서 업로드</button>
+            <div><span class="eyebrow">YOUR DOCUMENTS, CONNECTED.</span><h1>문서 워크스페이스</h1><p class="sub">문서 속 정보를 꺼내고, 다음 업무를 시작하세요.</p></div>
+            <button class="primary" data-goto="job-request"><svg class="icon"><use href="#i-plus"/></svg>새 문서 처리</button>
           </div>
           <div class="stat-grid">
-            <div class="stat-card"><div class="stat-icon blue"><svg class="icon"><use href="#i-doc"/></svg></div><div><div class="stat-label">처리한 문서</div><div class="stat-value"><span id="st-total">0</span><small>건</small></div></div></div>
-            <div class="stat-card"><div class="stat-icon green"><svg class="icon"><use href="#i-check-circle"/></svg></div><div><div class="stat-label">정상 인식</div><div class="stat-value"><span id="st-ok">0</span><small>건</small></div></div></div>
-            <div class="stat-card"><div class="stat-icon amber"><svg class="icon"><use href="#i-clock"/></svg></div><div><div class="stat-label">처리 중</div><div class="stat-value"><span id="st-run">0</span><small>건</small></div></div></div>
-            <div class="stat-card"><div class="stat-icon orange"><svg class="icon"><use href="#i-alert"/></svg></div><div><div class="stat-label">검토 필요 · 실패</div><div class="stat-value"><span id="st-review">0</span><small>건</small></div></div></div>
+            <div class="stat-card"><div class="stat-label">전체 문서 <svg class="icon"><use href="#i-doc"/></svg></div><div class="stat-value"><span id="st-total">0</span><small>건</small></div><span class="stat-note">워크스페이스에 등록된 문서</span></div>
+            <div class="stat-card"><div class="stat-label">인식 완료 <span class="status-dot done"></span></div><div class="stat-value"><span id="st-ok">0</span><small>건</small></div><span class="stat-note">추출 결과를 확인할 수 있어요</span></div>
+            <div class="stat-card"><div class="stat-label">처리 중 <span class="status-dot processing"></span></div><div class="stat-value"><span id="st-run">0</span><small>건</small></div><span class="stat-note">대기 및 인식이 진행 중인 문서</span></div>
+            <div class="stat-card"><div class="stat-label">확인 필요 <span class="status-dot review"></span></div><div class="stat-value"><span id="st-review">0</span><small>건</small></div><span class="stat-note">미분류 · 검토 필요 · 실패</span></div>
           </div>
-          <div class="card">
-            <div class="card-head"><h3>최근 처리된 문서</h3><button class="sm" data-goto="job-status">전체 보기</button></div>
-            <div class="table-scroll"><table class="grid"><thead><tr><th>파일명</th><th>문서 유형</th><th>요청 일시</th><th>단어 수</th><th>처리 상태</th><th></th></tr></thead><tbody id="db-body"></tbody></table></div>
+          <div class="start-panel">
+            <div class="start-copy"><span class="section-kicker">DOCUMENT TO DATA</span><h2>쌓여 있는 문서,<br>필요한 정보만 깔끔하게.</h2><p>PDF와 이미지를 올리면 텍스트와 표를 추출합니다.<br>서식을 적용해 필요한 항목을 한 번에 정리하세요.</p><button data-goto="job-request">문서 업로드 <svg class="icon"><use href="#i-arrow"/></svg></button></div>
+            <div class="document-art" aria-hidden="true"><div class="art-paper back"></div><div class="art-paper"><div class="art-paper-top"><span>DOCUMENT</span><svg class="icon"><use href="#i-doc"/></svg></div><div class="art-title"></div><div class="art-line"></div><div class="art-line short"></div><div class="art-selection"><span>텍스트 인식</span><div></div><div></div><i></i><i></i><i></i><i></i></div><div class="art-table"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="art-chip"><svg class="icon"><use href="#i-check-circle"/></svg>Ready to extract</div></div>
+            <div class="start-steps"><span><b>01</b> 문서 업로드</span><i></i><span><b>02</b> AI OCR 인식</span><i></i><span><b>03</b> 결과 검수 · 내보내기</span></div>
           </div>
+          <div class="dashboard-columns"><div class="card document-list-card">
+            <div class="card-head"><div><h3>최근 문서 <span class="count-label" id="db-count">0</span></h3><p class="card-sub">최근 등록한 문서와 처리 상태입니다.</p></div><button class="text-button" data-goto="job-status">전체 보기 <svg class="icon"><use href="#i-arrow"/></svg></button></div>
+            <div class="filter-tabs" id="db-filters" role="group" aria-label="최근 문서 필터"><button class="active" data-filter="all" aria-pressed="true">전체 문서</button><button data-filter="review" aria-pressed="false">확인 필요</button><button data-filter="run" aria-pressed="false">처리 중</button></div>
+            <div class="table-scroll"><table class="grid"><thead><tr><th>문서 이름</th><th>문서 유형</th><th>등록일</th><th>단어</th><th>상태</th><th><span class="sr-only">작업</span></th></tr></thead><tbody id="db-body"></tbody></table></div>
+          </div><aside class="dashboard-aside"><div class="card activity-card"><div class="card-head"><h3>처리 활동</h3><span class="hint">최근 7일</span></div><div class="activity-total"><strong id="activity-total">0</strong><span>건 등록</span></div><div id="activity-chart" class="activity-chart" role="img" aria-label="최근 7일 문서 등록 건수"></div><div class="activity-foot"><span class="legend-dot"></span>등록한 문서 수</div></div></aside></div>
+          <footer class="workspace-footer"><span>TextSense Document Workspace</span><span>문서의 가능성을, 업무의 일상으로.</span></footer>
         </section>
 
         <!-- 문서 처리 (업로드) -->
         <section id="tab-job-request" class="tab">
-          <div class="page-head"><div><h2>문서 처리</h2><p class="sub">PDF·이미지를 올리면 TextSense AI OCR 이 문자를 인식합니다.</p></div></div>
-          <div class="card">
+          <div class="page-head"><div><span class="eyebrow">NEW DOCUMENT</span><h1>문서 업로드</h1><p class="sub">파일을 올리고, 문서 속 정보를 정리하세요.</p></div><button data-goto="job-status">전체 문서 보기 <svg class="icon"><use href="#i-arrow"/></svg></button></div>
+          <div class="upload-layout"><div class="card upload-card"><div class="card-head"><h3><span class="step-number">01</span> 인식할 문서 선택</h3><span class="hint">여러 파일을 함께 올릴 수 있어요</span></div>
             <div class="upload-opts">
               <label>적용 서식
-                <select id="jr-template"><option value="">(자동 분류 - 키워드 기반)</option></select>
+                <select id="jr-template"><option value="">자동으로 서식 찾기</option></select>
               </label>
+              <label>인식 후 문서 분리<select id="jr-split"><option value="none">분리하지 않음</option><option value="pages">지정한 페이지 수로 분리</option><option value="blank">빈 페이지를 경계로 분리</option><option value="template">페이지별 서식 변경 시 분리</option></select></label>
+              <label id="jr-split-count-label" hidden>문서당 페이지 수<input id="jr-split-count" type="number" min="1" max="10000" value="1"></label>
             </div>
-            <details class="adv-opts" id="jr-adv">
-              <summary>고급 인식 옵션 (선택)</summary>
-              <div class="adv-grid">
-                <label>인식할 페이지
-                  <input id="jr-pages" placeholder="all (전체)  예: 1-3  /  1,3,5" autocomplete="off"></label>
-                <label>텍스트 검출 입력 크기 (TextInputMaxAxis)
-                  <input id="jr-text-axis" type="number" min="0" step="1" placeholder="기본값 사용"></label>
-                <label>테이블 검출 입력 크기 (TableInputMaxAxis)
-                  <input id="jr-table-axis" type="number" min="0" step="1" placeholder="기본값 사용"></label>
-                <label class="chk"><input id="jr-plain" type="checkbox"> 표 구조 무시 (PlainText)</label>
-                <label class="chk"><input id="jr-denoise" type="checkbox"> 노이즈 제거 (denoising)</label>
-                <label class="chk"><input id="jr-scaleup" type="checkbox"> 해상도 확대 (ScaleUp)</label>
-              </div>
-              <p class="hint">페이지를 지정하면 해당 페이지만 인식하며 결과 화면의 페이지 번호는 원본 기준으로 표시됩니다. 서식에 등록한 SearchAPI 규칙은 서식을 선택하면 자동으로 함께 요청됩니다.</p>
-            </details>
-            <div id="jr-drop" class="dropzone" tabindex="0">
+            <div id="jr-drop" class="dropzone" tabindex="0" role="button" aria-label="OCR 문서 파일 선택">
               <div class="dropzone-icon"><svg class="icon"><use href="#i-upload"/></svg></div>
-              <strong>파일을 여기로 끌어다 놓거나 클릭해서 선택하세요</strong>
-              <span class="hint">PDF, PNG, JPG, TIF, BMP · 여러 파일 가능 · 한 개만 올리면 완료 후 결과가 자동으로 열립니다</span>
-              <input id="jr-file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp" hidden>
+              <strong>문서를 여기에 놓아주세요</strong><span class="hint">또는 클릭해서 컴퓨터의 파일을 선택하세요</span><span class="choose-file">파일 선택 <svg class="icon"><use href="#i-plus"/></svg></span><div class="file-types"><span>PDF</span><span>JPG</span><span>PNG</span><span>TIFF</span><span>BMP</span></div>
             </div>
-            <ul id="jr-log" class="log"></ul>
-          </div>
+            <input id="jr-file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp" hidden>
+            <div class="upload-caption"><svg class="icon"><use href="#i-check-circle"/></svg>문서 한 개를 올리면 인식 완료 후 검수 화면이 열립니다.</div>
+            <div id="jr-progress" hidden><div class="card-head"><h3>업로드 및 처리 상태</h3><span class="hint">자동 업데이트</span></div><ul id="jr-log" class="log" aria-live="polite"></ul></div>
+          </div><aside class="upload-guide"><span class="section-kicker">A BETTER SCAN</span><h2>좋은 원본이<br>좋은 결과를 만듭니다.</h2><div class="guide-item"><span>01</span><div><h3>선명한 문서</h3><p>글자가 잘 보이는 원본이나 스캔 파일을 사용하세요.</p></div></div><div class="guide-item"><span>02</span><div><h3>서식으로 더 정확하게</h3><p>반복되는 양식은 서식을 지정하면 필요한 값만 추출할 수 있어요.</p></div></div><div class="guide-item"><span>03</span><div><h3>마지막 확인까지</h3><p>인식 결과를 원본과 비교하고 수정한 뒤 저장하세요.</p></div></div><button class="text-button" data-goto="form-template">서식 라이브러리 열기 <svg class="icon"><use href="#i-arrow"/></svg></button></aside></div>
         </section>
 
         <!-- 작업 현황 -->
         <section id="tab-job-status" class="tab">
           <div class="page-head">
-            <div><h2>작업 현황</h2><p class="sub">완료 · 처리중 · 실패 상태를 확인하고 결과를 열어볼 수 있습니다.</p></div>
+            <div><span class="eyebrow">DOCUMENT LIBRARY</span><h1>전체 문서</h1><p class="sub">진행 상태를 확인하고, 인식이 끝난 문서를 검수하세요.</p></div>
             <button id="js-refresh"><svg class="icon"><use href="#i-refresh"/></svg>새로고침</button>
           </div>
           <div class="card">
+            <div class="library-toolbar"><div class="filter-tabs" id="js-filters" role="group" aria-label="전체 문서 필터"><button class="active" data-filter="all" aria-pressed="true">전체 <span id="js-count">0</span></button><button data-filter="ok" aria-pressed="false">완료</button><button data-filter="review" aria-pressed="false">확인 필요</button><button data-filter="run" aria-pressed="false">처리 중</button></div><button class="primary sm" data-goto="job-request"><svg class="icon"><use href="#i-plus"/></svg>문서 업로드</button></div>
             <div class="table-scroll"><table class="grid"><thead><tr><th>파일명</th><th>처리 상태</th><th>서식</th><th>요청 일시</th><th></th></tr></thead><tbody id="js-body"></tbody></table></div>
           </div>
         </section>
 
         <!-- 서식 관리 -->
         <section id="tab-form-template" class="tab">
-          <div class="page-head"><div><h2>서식 관리</h2><p class="sub">문서 유형과 Key-Value 영역을 등록해 인식 정책을 반영합니다.</p></div></div>
+          <div class="page-head"><div><span class="eyebrow">TEMPLATE LIBRARY</span><h1>서식 라이브러리</h1><p class="sub">반복되는 문서, 한 번의 설정으로 필요한 항목만 추출하세요.</p></div></div>
           <div class="split">
             <aside class="card">
               <div class="card-head"><h3>서식 목록</h3><button id="ft-new" class="sm primary">+ 새 서식</button></div>
               <ul id="ft-list" class="list"></ul>
             </aside>
             <div class="editor card">
-              <div class="row">
+              <div class="editor-section-title"><span class="step-number">01</span><h3>서식 기본 정보</h3></div><div class="row form-basics">
                 <label>서식 이름 <input id="ft-name"></label>
                 <label>문서유형 <input id="ft-doctype" placeholder="예: invoice"></label>
                 <label>분류 키워드(쉼표 구분) <input id="ft-keywords" placeholder="예: 청구서, Invoice"></label>
               </div>
               <div class="row">
-                <label>샘플 이미지 (화면 표시용, 서버로 전송되지 않음)
-                  <input id="ft-sample" type="file" accept="image/*"></label>
-                <span class="hint">이미지 위에서 드래그하면 Key 영역(Rect)이 추가됩니다. PDF 는 아래 표에서 좌표를 직접 입력하세요.</span>
+                <label>샘플 문서 (서식과 함께 보관)
+                  <input id="ft-sample" type="file" accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff"></label>
+                <span class="hint">PDF와 다중 페이지 이미지를 넘기며 영역을 지정할 수 있습니다.</span>
               </div>
-              <div id="ft-canvas" class="canvas"><img id="ft-img" alt=""><div id="ft-rects"></div></div>
-              <div class="subhead">SearchAPI 규칙 <span class="hint">이 서식으로 요청할 때 TextSense 의 SearchAPI 로 함께 전달되어, 결과의 “SearchAPI 필드”에 표시됩니다.</span></div>
-              <div class="table-scroll"><table class="grid rules">
-                <thead><tr><th>종류(Type)</th><th>이름(Name)</th><th>Key (쉼표 구분 / FindRegion 은 x1,y1,x2,y2)</th><th></th></tr></thead>
-                <tbody id="ft-rules"></tbody>
-              </table></div>
-              <div class="row"><button id="ft-addrule" class="sm">+ SearchAPI 규칙 추가</button></div>
-              <div class="subhead">Key-Value 영역</div>
-              <div class="table-scroll"><table class="grid keys">
-                <thead><tr><th>Key</th><th>페이지</th><th>방식</th><th>x</th><th>y</th><th>w</th><th>h</th><th>필수</th><th>검증키</th><th>패턴(정규식)</th><th>최소</th><th>최대</th><th>예외값(쉼표)</th><th></th></tr></thead>
-                <tbody id="ft-keys"></tbody>
-              </table></div>
+              <div class="row" id="ft-sample-tools"><button id="ft-prev" class="sm" type="button">이전</button><span id="ft-page-label">샘플 없음</span><button id="ft-next" class="sm" type="button">다음</button><label>그리기 대상<select id="ft-draw-target"><option value="new">새 항목 추가</option><option value="selected">선택한 항목 영역 변경</option><option value="group">선택한 반복 그룹 영역 변경</option></select></label><button id="ft-preview" type="button">샘플 OCR 실행</button></div>
+              <div id="ft-preview-empty" class="template-preview-empty"><svg class="icon"><use href="#i-scan"/></svg><strong>추출할 영역을 지정하세요</strong><span>샘플 문서를 선택하면 이곳에서 영역을 그릴 수 있습니다.</span></div><div id="ft-canvas" class="canvas"><img id="ft-img" alt="서식의 추출 영역을 지정할 샘플 문서"><div id="ft-rects"></div></div>
+              <div id="ft-preview-result" class="preview-result" aria-live="polite"></div>
+              <div class="editor-section-title"><span class="step-number">02</span><h3>추출 항목과 검증 규칙</h3></div><div id="ft-keys" class="field-definitions"></div>
               <div class="row">
                 <button id="ft-addkey" class="sm">+ Key 추가</button>
+                <button id="ft-addgroup" class="sm">+ 반복 그룹 추가</button>
                 <button id="ft-save" class="primary">저장</button>
                 <button id="ft-delete" class="danger">삭제</button>
                 <span id="ft-msg" class="msg"></span>
               </div>
+              <div id="ft-groups" class="field-definitions"></div>
+              <details class="feature-details"><summary>문서 분류 규칙 및 엔진 요청 정책</summary><div class="validation-grid"><label>문서 키 정규식<input id="ft-doc-pattern"></label><label>문서 예외 정규식<input id="ft-doc-except"></label></div><p class="hint">기존 요청 정책에 아래 옵션을 병합합니다. 서버의 영구 정책 저장소는 변경하지 않습니다.</p><label>추가 reqOption (JSON)<textarea id="ft-engine-options" rows="7" spellcheck="false">{}</textarea></label></details>
+              <details class="feature-details"><summary>서식 버전 이력</summary><div class="row"><select id="ft-versions" aria-label="복원할 서식 버전"></select><button id="ft-restore" type="button">선택 버전 복원</button></div></details>
             </div>
           </div>
         </section>
 
         <!-- 문서 확인 (OCR 결과) -->
         <section id="tab-ocr-result" class="tab">
-          <div id="or-empty" class="card"><p class="hint">작업 현황에서 완료된 작업의 “결과 보기”를 선택하세요. (PDF/이미지를 업로드하면 완료 후 자동으로 표시됩니다)</p></div>
+          <div id="or-empty" class="card result-empty"><div class="empty-symbol"><svg class="icon"><use href="#i-scan"/></svg></div><span class="eyebrow">DOCUMENT REVIEW</span><h1>검수할 문서를 선택하세요</h1><p>원본과 인식 결과를 나란히 확인하고,<br>필요한 값을 수정해 저장할 수 있습니다.</p><button class="primary" data-goto="job-status">문서 선택하기 <svg class="icon"><use href="#i-arrow"/></svg></button></div>
           <div id="or-detail" hidden>
             <div class="viewer-head">
               <button class="back-btn" id="or-back" title="작업 현황으로" aria-label="뒤로"><svg class="icon"><use href="#i-back"/></svg></button>
               <h2 id="or-title">문서 확인</h2>
               <span id="or-meta" class="viewer-meta"></span>
+              <div class="viewer-head-actions"><select id="or-export-format" aria-label="다운로드 형식"><option value="xlsx">Excel 파일 (.xlsx)</option><option value="csv">CSV 파일</option><option value="json">JSON 파일</option><option value="xml">XML 파일</option><option value="txt">텍스트 파일</option><option value="pdf">검색 가능한 PDF</option><option value="md">Markdown 파일</option></select><button id="or-export"><svg class="icon"><use href="#i-download"/></svg>내보내기</button></div>
             </div>
 
             <div class="viewer">
@@ -202,16 +213,18 @@
                     <button class="seg-btn" id="or-mode-text" type="button" aria-pressed="false">텍스트</button>
                   </div>
                   <button class="seg-btn toggle" id="or-overlay-toggle" type="button" aria-pressed="false" title="인식된 단어의 위치를 원본 위에 표시">인식 영역</button>
+                  <button class="tb-btn" id="or-rotate" type="button" title="시계 방향으로 회전">회전 ↻</button>
                   <span id="or-sheet-note" class="hint"></span>
                 </div>
                 <div class="sheet-stage"><div id="or-sheet" class="sheet"></div></div>
               </div>
 
               <div class="card">
-                <div class="pane-head">인식 결과 <span id="or-doctype" class="pill info"></span></div>
+                <div class="pane-head"><span><svg class="icon"><use href="#i-scan"/></svg> 인식 결과</span><span id="or-doctype" class="pill info"></span></div>
                 <div class="result-body">
                   <div id="or-banner" class="banner ok"></div>
                   <div id="or-fields"></div>
+                  <div id="or-review-actions" class="review-actions" hidden><label class="confirm-check"><input id="or-confirm" type="checkbox">원본과 비교하고 검수를 완료했습니다</label><button id="or-save" class="primary"><svg class="icon"><use href="#i-check"/></svg>검수 결과 저장</button><span id="or-save-msg" class="msg" role="status"></span></div>
                   <div class="result-actions">
                     <button id="or-copy"><svg class="icon"><use href="#i-copy"/></svg>전체 텍스트 복사</button>
                     <button id="or-goto-form" class="primary"><svg class="icon"><use href="#i-template"/></svg>서식 관리</button>
@@ -226,22 +239,29 @@
               <div class="tabbar" id="or-page-tabs" role="tablist" aria-label="페이지"></div>
               <div id="or-page-panel"></div>
               <details><summary>서식 적용 결과 JSON</summary><pre id="or-json"></pre></details>
+              <details class="feature-details"><summary>서식 재적용 · 문서 분리 · 업무 연동</summary><div class="row"><select id="or-reapply-form" aria-label="재적용할 서식"></select><button id="or-reapply">서식 재적용</button></div><p class="hint">재적용하면 기존 검수값을 초기화합니다. 검색 가능한 PDF는 원본 OCR 텍스트를 포함하고, 검수 결과는 첨부 JSON에 보관합니다.</p><div class="row"><label>분리할 페이지 그룹<input id="or-split-groups" placeholder="예: 1-2;3-4;5"></label><button id="or-split">문서 분리</button><button id="or-deliver" data-admin-only hidden>업무 서버로 전송</button></div><span id="or-action-msg" class="msg" role="status"></span></details>
+              <details class="feature-details"><summary>작업 이력</summary><div id="or-history"></div></details>
             </div>
           </div>
         </section>
 
+        <section id="tab-compare" class="tab"><div class="page-head"><div><h1>문서 비교</h1><p class="sub">두 문서의 OCR 텍스트와 위치 차이를 확인하세요.</p></div></div><div class="card"><div class="row"><label>원본 문서<select id="cp-left"></select></label><label>비교 문서<select id="cp-right"></select></label><label>원본 파일 첨부<input id="cp-left-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp"></label><label>비교 파일 첨부<input id="cp-right-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp"></label></div><div class="row"><label><input id="cp-layout" type="checkbox" checked>위치 변경도 비교</label><button id="cp-run" class="primary">비교 분석</button><select id="cp-history" aria-label="이전 비교 결과"></select><button id="cp-open">이전 결과 열기</button></div><span id="cp-msg" class="msg" role="status"></span></div><div class="compare-view" id="cp-result" hidden><div class="card compare-changes"><h3 id="cp-count">차이점</h3><div id="cp-differences"></div></div><div class="card compare-document"><h3>원본 문서</h3><div id="cp-left-pages"></div></div><div class="card compare-document"><h3>비교 문서</h3><div id="cp-right-pages"></div></div></div></section>
+        <section id="tab-operations" class="tab"><div class="page-head"><div><h1>운영 관리</h1><p class="sub">서버 자원, 서비스 연결, 작업 이력과 장애를 확인하세요.</p></div><button id="op-refresh">새로고침</button></div><div id="op-msg" class="msg" role="status"></div><div id="op-metrics" class="stat-grid"></div><div class="card"><h3>서비스 상태</h3><div id="op-services"></div><h3>실패 및 연동 내역</h3><div id="op-failures"></div><h3>최근 작업 이력</h3><div id="op-events" class="table-scroll"></div></div><div class="card"><h3>기존 엔진 요청 정책</h3><p class="hint">이 정책과 서식의 추가 정책을 요청마다 병합합니다. SearchAPI 이름이 중복되면 요청을 중단해 알려드립니다.</p><label>기존 정책 (JSON)<textarea id="op-policy" rows="9" spellcheck="false"></textarea></label><button id="op-save-policy" class="primary">요청 정책 저장</button><p id="op-capabilities" class="hint"></p></div><div class="card"><h3>업무 서버 연동</h3><p class="hint">수신 서버는 JSON POST와 Idempotency-Key를 지원해야 합니다. 전송 실패는 최대 3번 재시도하며 이력에 보관합니다.</p><div class="validation-grid"><label>결과 수신 URL<input id="op-url" type="url" placeholder="https://업무서버/api/ocr-results"></label><label>인증 토큰 (변경할 때만 입력)<input id="op-token" type="password" autocomplete="off"></label><label>원격 OCR 서버 지표 URL (선택)<input id="op-monitor-url" type="url"></label><label><input id="op-auto-send" type="checkbox">OCR 완료 후 자동 전송</label></div><button id="op-save-integration" class="primary">연동 설정 저장</button></div><details class="card feature-details"><summary>전체 문서 초기화</summary><p>문서 원본·결과·작업·비교·전송 이력을 삭제합니다. 사용자 계정과 연결 설정은 유지합니다.</p><label><input id="op-reset-forms" type="checkbox">서식·버전·샘플도 삭제</label><div class="row"><label>확인 문구<input id="op-reset-confirm" placeholder="문서 초기화"></label><button id="op-reset" class="danger">선택한 데이터 초기화</button></div></details></section>
+        <section id="tab-users" class="tab"><div class="page-head"><div><span class="eyebrow">TEAM & ACCESS</span><h1>사용자 관리</h1><p class="sub">가입 신청을 승인하고 구성원의 접근 권한을 관리하세요.</p></div><button id="users-refresh"><svg class="icon"><use href="#i-refresh"/></svg>새로고침</button></div><div class="users-summary"><div class="users-stat"><span>전체 사용자</span><strong id="users-total">0</strong></div><div class="users-stat"><span>활성 사용자</span><strong id="users-active">0</strong></div><div class="users-stat"><span>승인 대기</span><strong id="users-pending">0</strong></div></div><div class="card"><div class="users-toolbar"><div class="filter-tabs" id="users-filters" role="group" aria-label="사용자 상태 필터"><button class="active" data-filter="all" aria-pressed="true">전체</button><button data-filter="pending" aria-pressed="false">승인 대기</button><button data-filter="active" aria-pressed="false">활성</button><button data-filter="disabled" aria-pressed="false">비활성</button></div><input class="user-search" id="users-search" type="search" aria-label="사용자 검색" placeholder="이름, 이메일, 소속 검색"></div><div id="users-message" class="users-message msg" role="status"></div><div class="table-scroll"><table class="grid user-table"><thead><tr><th>사용자</th><th>소속</th><th>권한</th><th>상태</th><th>가입일</th><th>권한 및 상태 변경</th></tr></thead><tbody id="users-body"></tbody></table></div></div></section>
+
         <!-- 설정: 연결 점검 -->
         <section id="tab-ocr-connect" class="tab">
-          <div class="page-head"><div><h2>설정 · OCR 서버 연결 점검</h2><p class="sub">TextSense(textsense-gateway) REST API 연결 상태를 확인합니다.</p></div></div>
-          <div class="card">
+          <div class="page-head"><div><span class="eyebrow">CONNECTION SETTINGS</span><h1>연결 설정</h1><p class="sub">OCR 엔진의 연결 정보와 요청 상태를 확인합니다.</p></div></div>
+          <div class="settings-intro"><div class="connection-logo"><svg class="icon"><use href="#i-scan"/></svg></div><div><h2>TextSense AI OCR</h2><p>문서 인식 엔진 <span id="oc-mode" class="pill info">설정 확인 중</span></p></div><span class="connection-tag">ENGINE INTEGRATION</span></div><div class="card settings-card"><div class="card-head"><h3>서버 연결 정보</h3></div>
             <dl id="oc-info" class="kv"></dl>
-            <button id="oc-test" class="primary">연결 테스트 실행</button>
+            <div class="connection-test-row"><p class="hint">설정된 샘플 문서로 엔진의 응답을 점검합니다.</p><button id="oc-test" class="primary"><svg class="icon"><use href="#i-refresh"/></svg>연결 테스트</button></div><div id="oc-summary" role="status"></div>
             <pre id="oc-result" class="out conn-result"></pre>
           </div>
         </section>
       </main>
     </div>
   </div>
+  <dialog id="help-dialog"><div class="dialog-head"><div><span class="eyebrow">QUICK GUIDE</span><h2>세 단계로 시작하세요</h2></div><button id="help-close" class="icon-btn" aria-label="사용 가이드 닫기">✕</button></div><ol class="help-steps"><li><strong>문서 업로드</strong><p>PDF 또는 이미지를 선택하면 인식이 시작됩니다. 같은 양식은 서식을 먼저 등록해 보세요.</p></li><li><strong>결과 확인과 검수</strong><p>완료된 문서를 열어 원본과 결과를 비교하세요. 서식에서 추출한 값은 직접 수정할 수 있습니다.</p></li><li><strong>저장과 내보내기</strong><p>검수를 마치면 저장한 뒤 CSV, JSON, 텍스트로 내려받을 수 있습니다.</p></li></ol><div class="guide-shortcuts"><span><kbd>Ctrl K</kbd> 문서 검색</span><span><kbd>Esc</kbd> 닫기</span></div></dialog>
 
   <script src="/js/common/api.util.js"></script>
   <script src="/js/features/ocr-connect.view.js"></script>
@@ -249,6 +269,10 @@
   <script src="/js/features/dashboard.view.js"></script>
   <script src="/js/features/doc-viewer.view.js"></script>
   <script src="/js/features/form-job.view.js"></script>
+  <dialog id="profile-dialog" class="profile-dialog"><div class="dialog-head"><div><span class="eyebrow">MY ACCOUNT</span><h2>내 계정</h2></div><button id="profile-close" class="icon-btn" aria-label="내 계정 닫기">✕</button></div><dl class="profile-info" id="profile-info"></dl><form class="password-change-form" id="password-change-form"><h3>비밀번호 변경</h3><label>현재 비밀번호<input id="profile-current-password" type="password" autocomplete="current-password" required maxlength="128"></label><label>새 비밀번호<input id="profile-new-password" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></label><label>새 비밀번호 확인<input id="profile-password-confirm" type="password" autocomplete="new-password" required minlength="12" maxlength="128"></label><span class="hint">12~128자. 변경하면 다른 기기의 로그인은 종료됩니다.</span><button class="primary" id="profile-password-submit" type="submit">비밀번호 변경</button><span id="profile-message" class="msg" role="status"></span></form></dialog>
+  <script src="/js/features/account.view.js"></script>
+  <script src="/js/features/users.view.js"></script>
+  <script src="/js/features/workspace.view.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

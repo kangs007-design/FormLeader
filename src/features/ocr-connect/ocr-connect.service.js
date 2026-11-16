@@ -12,6 +12,7 @@ class OcrConnectService {
     const { textsense, storage, publicUrl, ftp } = this.config;
     const auto = String(publicUrl).toLowerCase() === 'auto';
     return {
+      mode: this.config.mockMode ? 'mock' : 'live',
       endpoint: `http://${textsense.host}:${textsense.port}${textsense.buildPath}`,
       statusEndpoint: `http://${textsense.host}:${textsense.port}${textsense.statusPath}`,
       engineUrl: textsense.engineUrl,

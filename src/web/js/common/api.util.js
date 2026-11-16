@@ -8,10 +8,11 @@ FR.$ = (sel, root = document) => root.querySelector(sel);
 FR.api = async function api(method, url, body) {
   const res = await fetch(url, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: { 'X-Requested-With': 'TextSense', ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   let json;
+  if (res.status === 401) { location.replace('/login'); throw new Error('로그인이 만료되었습니다.'); }
   try { json = await res.json(); } catch (_) { throw new Error(`서버 응답 오류 (HTTP ${res.status})`); }
   if (!json.ok) throw new Error(json.error && json.error.message ? json.error.message : '요청 실패');
   return json.data;
@@ -53,6 +54,24 @@ FR.icon = function icon(name) {
 
 /** 상단 검색어 (파일명/문서 유형 필터) */
 FR.state = { search: '' };
+FR.syncJobCount = async () => { const jobs = await FR.api('GET', '/api/jobs'); FR.$('#nav-job-count').textContent = jobs.length; };
+
+FR.fileCell = function fileCell(job) {
+  const ext = (job.fileName.split('.').pop() || '').toUpperCase();
+  return FR.el('div', { class: 'file-cell' },
+    FR.el('span', { class: `file-type${ext !== 'PDF' ? ' image' : ''}`, 'aria-hidden': 'true' }, ext.slice(0, 4)),
+    FR.el('div', { class: 'file-info' }, FR.el('span', { class: 'file-title', title: job.fileName }, job.fileName),
+      FR.el('span', { class: 'file-meta' }, job.result && job.result.pageCount ? `${job.result.pageCount} 페이지 · ${ext} 문서` : `${ext} 문서`)));
+};
+FR.shortDate = (iso) => iso ? new Date(iso).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '—';
+FR.emptyRow = (columns, message) => FR.el('tr', {}, FR.el('td', { class: 'empty', colspan: columns },
+  FR.el('div', { class: 'empty-table-content' }, FR.icon('folder'), message)));
+FR.download = function download(name, content, type) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = FR.el('a', { href: url, download: name });
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 FR.jobMatchesSearch = function jobMatchesSearch(job) {
   const q = FR.state.search.trim().toLowerCase();
@@ -63,9 +82,12 @@ FR.jobMatchesSearch = function jobMatchesSearch(job) {
 
 /** 작업 → 화면 상태 표시 (알약 배지 색/문구). 서식이 적용됐고 검증 실패가 있으면 '검토 필요' */
 FR.jobStatus = function jobStatus(job) {
+  if (job.status === 'cancelled') return {cls:'review',label:'취소',group:'cancelled'};
   if (job.status === 'failed') return { cls: 'failed', label: '실패', group: 'review' };
   if (job.status !== 'done') return { cls: 'processing', label: '처리중', group: 'run' };
-  if (job.result && job.result.classified && job.result.needsReview) return { cls: 'review', label: '검토 필요', group: 'review' };
+  if (job.review && job.review.confirmed) return { cls: 'done', label: '검수 완료', group: 'ok' };
+  if (job.review && job.review.values && Object.values(job.review.values).some((field) => !field.valid)) return { cls: 'review', label: '검토 필요', group: 'review' };
+  if (job.result && job.result.needsReview) return { cls: 'review', label: job.result.classified ? '검토 필요' : '미분류', group: 'review' };
   return { cls: 'done', label: '완료', group: 'ok' };
 };
 

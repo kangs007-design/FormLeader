@@ -10,6 +10,7 @@ const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.mjs': 'text/javascript; charset=utf-8', // pdf.js (ES module / worker) - 모듈은 JavaScript MIME 이어야 로드된다
   '.wasm': 'application/wasm',
+  '.woff2': 'font/woff2',
 };
 
 /** 원본 파일 미리보기용 Content-Type (브라우저가 그대로 표시할 수 있는 형식) */
