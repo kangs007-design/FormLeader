@@ -5,6 +5,7 @@ FR.formTemplateView = (() => {
     keys = [],
     groups = [],
     sample = null,
+    retainedSampleId = '',
     page = 1,
     pdf = null,
     selected = 0,
@@ -439,6 +440,7 @@ FR.formTemplateView = (() => {
       pdf = null;
     }
     sample = null;
+    retainedSampleId = f?.sampleId || '';
     page = 1;
     selected = 0;
     selectedGroup = 0;
@@ -457,7 +459,7 @@ FR.formTemplateView = (() => {
     FR.$("#ft-msg").textContent = "";
     FR.$("#ft-preview-result").replaceChildren();
     FR.$("#ft-delete").disabled = !currentId;
-    if (f?.sampleId)
+    if (f?.sampleId && FR.productCapabilities?.samples !== false)
       try {
         sample = await FR.api("GET", `/api/samples/${f.sampleId}`);
       } catch (e) {
@@ -485,7 +487,7 @@ FR.formTemplateView = (() => {
         .filter(Boolean),
       keys,
       groups,
-      sampleId: sample?.id || "",
+      sampleId: sample?.id || retainedSampleId,
       documentRule: {
         pattern: FR.$("#ft-doc-pattern").value,
         exceptPattern: FR.$("#ft-doc-except").value,

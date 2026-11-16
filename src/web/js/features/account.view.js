@@ -13,6 +13,7 @@ FR.accountView = (() => {
   async function init() {
     const info = await FR.api('GET', '/api/account/me');
     const user = info.user;
+    FR.productCapabilities = info.capabilities || null;
     FR.currentUser = user;
     const admin = user.role === 'admin';
     document.querySelectorAll('[data-admin-only], .sidebar-tip, #or-goto-form, .upload-guide>.text-button').forEach((element) => { element.hidden = !admin; });

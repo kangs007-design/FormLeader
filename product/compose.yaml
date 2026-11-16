@@ -1,0 +1,56 @@
+name: formreader-product
+services:
+  nginx:
+    image: nginx:1.28.0-alpine
+    pull_policy: never
+    ports: ["${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8088}:8080"]
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./offline/web:/opt/formreader/web:ro
+    depends_on: [tomcat]
+    restart: unless-stopped
+    networks: [web]
+  tomcat:
+    image: tomcat:10.1.61-jdk21-temurin
+    pull_policy: never
+    environment:
+      FORMREADER_PUBLIC_URL: ${FORMREADER_PUBLIC_URL:?Set the external browser origin}
+      FORMREADER_SETUP_TOKEN: ${FORMREADER_SETUP_TOKEN:-}
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_NAME: formreader
+      DB_USER: formreader
+      DB_PASSWORD: ${DB_PASSWORD:?Set database application password}
+      CATALINA_OPTS: -Dorg.apache.tomcat.util.digester.PROPERTY_SOURCE=org.apache.tomcat.util.digester.EnvironmentPropertySource
+    volumes:
+      - ./offline/ROOT.war:/usr/local/tomcat/webapps/ROOT.war:ro
+      - ./offline/lib/mariadb-java-client-4.0.0.jar:/usr/local/tomcat/lib/mariadb-java-client-4.0.0.jar:ro
+      - ./deploy/ROOT.xml:/usr/local/tomcat/conf/Catalina/localhost/ROOT.xml:ro
+      - ./deploy/server.xml:/usr/local/tomcat/conf/server.xml:ro
+    depends_on:
+      mariadb: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [web, database]
+  mariadb:
+    image: mariadb:11.4.9
+    pull_policy: never
+    environment:
+      MARIADB_DATABASE: formreader
+      MARIADB_USER: formreader
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Set database application password}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set a separate database administrator password}
+    volumes:
+      - database:/var/lib/mysql
+      - ./db/V001__product.sql:/docker-entrypoint-initdb.d/001-product.sql:ro
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks: [database]
+volumes:
+  database:
+networks:
+  web:
+  database: { internal: true }

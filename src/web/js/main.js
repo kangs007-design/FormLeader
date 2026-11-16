@@ -1,7 +1,7 @@
 "use strict";
 /** 웹 진입점: 사이드바 탭 전환 + 검색 + 각 화면 초기화 */
 const TAB_LOADERS = {
-  dashboard: () => FR.dashboardView.load(),
+  dashboard: () => FR.productCapabilities?.ocrProcessing === false ? undefined : FR.dashboardView.load(),
   "job-request": () => FR.formJobView.loadTemplateOptions(),
   "job-status": () => FR.formJobView.refresh(),
   "form-template": () => FR.formTemplateView.load(),
@@ -23,6 +23,7 @@ Object.assign(TAB_NAMES, { compare: "문서 비교", operations: "운영 관리"
 
 FR.showTab = function showTab(name) {
   if (!TAB_NAMES[name]) name = "dashboard";
+  if (FR.productCapabilities && name !== 'dashboard' && !FR.productCapabilities.tabs.includes(name)) name = 'dashboard';
   if (
     ["users", "form-template", "ocr-connect", "operations"].includes(name) &&
     FR.currentUser?.role !== "admin"
@@ -64,7 +65,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   FR.usersView.init();
   FR.operationsView.init();
   FR.compareView.init();
-  FR.syncJobCount().catch(() => {});
+  if (FR.productCapabilities?.ocrProcessing === false) {
+    document.querySelectorAll('#tabs [data-tab]').forEach((button) => {
+      if (button.dataset.tab !== 'dashboard' && !FR.productCapabilities.tabs.includes(button.dataset.tab)) {
+        button.disabled = true;
+        button.title = '제품판 준비 중';
+      }
+    });
+    FR.$('#global-search').disabled = true;
+    FR.$('#global-search').placeholder = '문서 기능 준비 중';
+    const title = document.createElement('h1');
+    title.textContent = '제품판 준비 중';
+    const description = document.createElement('p');
+    description.className = 'sub';
+    description.textContent = '현재 계정 관리와 서식 저장을 이용할 수 있습니다. 문서 인식·검수·내보내기는 Pilot v1에서 계속 이용해 주세요.';
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.append(title, description);
+    FR.$('#tab-dashboard').replaceChildren(card);
+    // Samples and test OCR move together with the document-processing APIs.
+    document.querySelectorAll('#ft-sample, #ft-preview').forEach((element) => {
+      element.disabled = true;
+      element.title = '샘플 인식은 제품판 준비 중입니다.';
+    });
+  } else FR.syncJobCount().catch(() => {});
   FR.$("#today-label").textContent = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     year: "numeric",

@@ -10,3 +10,7 @@ artifacts/
 *.sqlite
 *.sqlite-*
 *.log
+.codex-tools/
+product/was/target/
+product/offline/
+product/runtime/
