@@ -62,18 +62,26 @@
         <div class="brand-mark"><svg class="icon"><use href="#i-scan"/></svg></div>
         <div class="brand-name">TextSense<span class="brand-dot">.</span><small>DOCUMENT WORKSPACE</small></div>
       </div>
-      <span class="nav-caption">WORKSPACE</span>
       <nav class="nav" id="tabs" aria-label="주 메뉴">
-        <button class="nav-item active" data-tab="dashboard" aria-label="워크스페이스"><svg class="icon"><use href="#i-dashboard"/></svg><span>워크스페이스</span></button>
-        <button class="nav-item" data-tab="job-request" aria-label="문서 업로드"><svg class="icon"><use href="#i-upload"/></svg><span>문서 업로드</span><span class="nav-plus">+</span></button>
-        <button class="nav-item" data-tab="job-status" aria-label="전체 문서"><svg class="icon"><use href="#i-folder"/></svg><span>전체 문서</span><span id="nav-job-count" class="nav-count">0</span></button>
-        <button class="nav-item" data-tab="ocr-result" aria-label="문서 검수"><svg class="icon"><use href="#i-scan"/></svg><span>문서 검수</span></button>
-        <button class="nav-item" data-tab="compare" aria-label="문서 비교"><svg class="icon"><use href="#i-doc"/></svg><span>문서 비교</span></button>
-        <span class="nav-caption nav-caption-inner" data-admin-only hidden>MANAGE</span>
-        <button class="nav-item" data-tab="form-template" aria-label="서식 라이브러리" data-admin-only hidden><svg class="icon"><use href="#i-template"/></svg><span>서식 라이브러리</span></button>
-        <button class="nav-item" data-tab="users" aria-label="사용자 관리" data-admin-only hidden><svg class="icon"><use href="#i-users"/></svg><span>사용자 관리</span></button>
-        <button class="nav-item" data-tab="ocr-connect" aria-label="연결 설정" data-admin-only hidden><svg class="icon"><use href="#i-gear"/></svg><span>연결 설정</span></button>
-        <button class="nav-item" data-tab="operations" aria-label="운영 관리" data-admin-only hidden><svg class="icon"><use href="#i-gear"/></svg><span>운영 관리</span></button>
+        <div class="nav-group" data-group="workspace">
+          <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-g-workspace"><span>WORKSPACE</span><svg class="icon nav-chev"><use href="#i-chev-r"/></svg></button>
+          <div class="nav-group-items" id="nav-g-workspace">
+          <button class="nav-item active" data-tab="dashboard" aria-label="워크스페이스"><svg class="icon"><use href="#i-dashboard"/></svg><span>워크스페이스</span></button>
+          <button class="nav-item" data-tab="job-request" aria-label="문서 업로드"><svg class="icon"><use href="#i-upload"/></svg><span>문서 업로드</span><span class="nav-plus">+</span></button>
+          <button class="nav-item" data-tab="job-status" aria-label="전체 문서"><svg class="icon"><use href="#i-folder"/></svg><span>전체 문서</span><span id="nav-job-count" class="nav-count">0</span></button>
+          <button class="nav-item" data-tab="ocr-result" aria-label="문서 검수"><svg class="icon"><use href="#i-scan"/></svg><span>문서 검수</span></button>
+          <button class="nav-item" data-tab="compare" aria-label="문서 비교"><svg class="icon"><use href="#i-doc"/></svg><span>문서 비교</span></button>
+          </div>
+        </div>
+        <div class="nav-group" data-group="manage" data-admin-only hidden>
+          <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-g-manage"><span>MANAGE</span><svg class="icon nav-chev"><use href="#i-chev-r"/></svg></button>
+          <div class="nav-group-items" id="nav-g-manage">
+          <button class="nav-item" data-tab="form-template" aria-label="서식 라이브러리" data-admin-only hidden><svg class="icon"><use href="#i-template"/></svg><span>서식 라이브러리</span></button>
+          <button class="nav-item" data-tab="users" aria-label="사용자 관리" data-admin-only hidden><svg class="icon"><use href="#i-users"/></svg><span>사용자 관리</span></button>
+          <button class="nav-item" data-tab="ocr-connect" aria-label="연결 설정" data-admin-only hidden><svg class="icon"><use href="#i-gear"/></svg><span>연결 설정</span></button>
+          <button class="nav-item" data-tab="operations" aria-label="운영 관리" data-admin-only hidden><svg class="icon"><use href="#i-gear"/></svg><span>운영 관리</span></button>
+          </div>
+        </div>
       </nav>
       <div class="sidebar-bottom"><div class="sidebar-tip"><svg class="icon"><use href="#i-template"/></svg><strong>반복 문서는 서식으로</strong><p>추출 영역을 한 번 설정하면<br>같은 문서를 빠르게 처리합니다.</p><button data-goto="form-template">서식 만들기 <svg class="icon"><use href="#i-arrow"/></svg></button></div><button class="sidebar-help" id="help-open"><svg class="icon"><use href="#i-help"/></svg><span>사용 가이드</span><kbd>?</kbd></button><div class="sidebar-foot"><span class="engine-dot"></span> Powered by TextSense AI OCR</div></div>
     </aside>

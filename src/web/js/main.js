@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       help.showModal();
   });
 
+  initNavGroups();
   document
     .querySelectorAll("#tabs .nav-item")
     .forEach((b) =>
@@ -118,3 +119,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   FR.showTab(initial === "ocr-result" ? "job-status" : initial || "dashboard");
   FR.$("#workspace-app").hidden = false;
 });
+
+/** 사이드바 메뉴 그룹(WORKSPACE / MANAGE) 접기·펼치기. 상태는 브라우저에 기억한다 */
+function initNavGroups() {
+  const KEY = "fr.navCollapsed";
+  let collapsed = [];
+  try { collapsed = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (_) { /* 저장소 사용 불가 */ }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(collapsed)); } catch (_) { /* 무시 */ } };
+  document.querySelectorAll(".nav-group").forEach((group) => {
+    const name = group.dataset.group;
+    const toggle = group.querySelector(".nav-group-toggle");
+    const set = (isCollapsed) => {
+      group.classList.toggle("collapsed", isCollapsed);
+      toggle.setAttribute("aria-expanded", String(!isCollapsed));
+    };
+    set(collapsed.includes(name));
+    toggle.addEventListener("click", () => {
+      const next = !group.classList.contains("collapsed");
+      set(next);
+      collapsed = next ? [...new Set([...collapsed, name])] : collapsed.filter((n) => n !== name);
+      save();
+    });
+  });
+}
