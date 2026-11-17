@@ -239,13 +239,17 @@ FR.operationsView = (() => {
     load,
     init() {
       FR.$("#op-refresh").onclick = refresh;
-      FR.$("#op-save-policy").onclick = () =>
-        act(() =>
-          FR.api("PUT", "/api/workspace/settings", {
-            engine: JSON.parse(FR.$("#op-policy").value),
-          }),
-        );
-      FR.$("#op-save-integration").onclick = () =>
+      FR.$("#op-save-policy").onclick = () => {
+        const policy = FR.$("#op-policy");
+        let engine;
+        const valid = FR.validateFields([], [
+          { input: policy, check: (v) => { try { engine = JSON.parse(v); return ""; } catch (_) { return "올바른 JSON 형식으로 입력하세요."; } } },
+        ]);
+        if (!valid) return;
+        act(() => FR.api("PUT", "/api/workspace/settings", { engine }));
+      };
+      FR.$("#op-save-integration").onclick = () => {
+        if (!FR.validateFields([FR.$("#op-url"), FR.$("#op-monitor-url")])) return;
         act(() =>
           FR.api("PUT", "/api/workspace/settings", {
             integration: {
@@ -258,7 +262,12 @@ FR.operationsView = (() => {
             },
           }),
         );
+      };
       FR.$("#op-reset").onclick = async () => {
+        const confirmInput = FR.$("#op-reset-confirm");
+        if (!FR.validateFields([], [
+          { input: confirmInput, check: (v) => (v.trim() === "문서 초기화" ? "" : "확인 문구로 '문서 초기화'를 정확히 입력하세요.") },
+        ])) return;
         if (!confirm("선택한 문서 데이터를 영구 삭제할까요?")) return;
         try {
           const r = await FR.api("POST", "/api/workspace/reset", {

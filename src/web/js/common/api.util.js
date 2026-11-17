@@ -14,7 +14,7 @@ FR.api = async function api(method, url, body) {
   let json;
   if (res.status === 401) { location.replace('/login'); throw new Error('로그인이 만료되었습니다.'); }
   try { json = await res.json(); } catch (_) { throw new Error(`서버 응답 오류 (HTTP ${res.status})`); }
-  if (!json.ok) throw new Error(json.error && json.error.message ? json.error.message : '요청 실패');
+  if (!json.ok) throw Object.assign(new Error(json.error && json.error.message ? json.error.message : '요청 실패'), { code: json.error && json.error.code });
   return json.data;
 };
 

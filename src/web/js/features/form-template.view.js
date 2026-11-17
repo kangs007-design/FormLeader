@@ -661,6 +661,11 @@ FR.formTemplateView = (() => {
         renderRects();
       };
       FR.$("#ft-save").onclick = async () => {
+        FR.$("#ft-name").required = FR.$("#ft-doctype").required = true;
+        if (!FR.validateFields([FR.$("#ft-name"), FR.$("#ft-doctype")])) {
+          FR.setMsg(FR.$("#ft-msg"), "입력 내용을 확인해 주세요.", false);
+          return;
+        }
         try {
           const f = await FR.api(
             currentId ? "PUT" : "POST",

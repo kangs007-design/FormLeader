@@ -84,6 +84,10 @@ FR.formJobView = (() => {
 
   async function uploadFiles(files) {
     if (!files.length) return;
+    const splitCount = FR.$("#jr-split-count");
+    if (!FR.validateFields([splitCount], [
+      { input: splitCount, check: (v) => (Number.isInteger(Number(v)) ? "" : "반드시 숫자만 입력하세요.") },
+    ])) return;
     FR.$("#jr-progress").hidden = false;
     const log = FR.$("#jr-log");
     const templateId = FR.$("#jr-template").value || undefined;
@@ -992,10 +996,16 @@ FR.formJobView = (() => {
         });
       FR.$("#or-split").onclick = () =>
         action(async () => {
+          const groupsInput = FR.$("#or-split-groups");
+          let groups;
+          const valid = FR.validateFields([groupsInput], [
+            { input: groupsInput, check: (v) => { try { groups = FR.parsePageGroups(v); return ""; } catch (e) { return e.message; } } },
+          ]);
+          if (!valid) return;
           const children = await FR.api(
             "POST",
             `/api/jobs/${currentJob.id}/split`,
-            { groups: FR.parsePageGroups(FR.$("#or-split-groups").value) },
+            { groups },
           );
           await showResult(currentJob.id);
           await FR.syncJobCount();

@@ -7,6 +7,11 @@
     PASSWORD_TOO_SHORT: '비밀번호는 12자 이상 입력해 주세요.', PASSWORD_TOO_LONG: '비밀번호는 128자 이내로 입력해 주세요.',
     INVALID_EMAIL: '올바른 이메일 주소를 입력해 주세요.', USER_ALREADY_EXISTS: '이미 등록된 이메일입니다.', TOO_MANY_REQUESTS: '요청이 많습니다. 잠시 후 다시 시도해 주세요.',
   };
+  const fieldOfError = (code) => ({
+    INVALID_EMAIL: $('#auth-email'), USER_ALREADY_EXISTS: $('#auth-email'),
+    INVALID_EMAIL_OR_PASSWORD: $('#auth-password'), INVALID_PASSWORD: $('#auth-password'),
+    PASSWORD_TOO_SHORT: $('#auth-password'), PASSWORD_TOO_LONG: $('#auth-password'),
+  })[code] || null;
   const showError = (message) => { $('#auth-error').textContent = message; $('#auth-error').hidden = false; };
 
   async function initialize() {
@@ -47,7 +52,11 @@
   $('#account-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     $('#auth-error').hidden = true;
-    if (mode !== 'login' && $('#auth-password').value !== $('#auth-password-confirm').value) { showError('비밀번호가 서로 일치하지 않습니다.'); return; }
+    const confirmInput = $('#auth-password-confirm');
+    const valid = FR.validateForm($('#account-form'), mode === 'login' ? [] : [
+      { input: confirmInput, check: (v) => (v !== $('#auth-password').value ? '동일한 비밀번호를 입력해 주세요.' : '') },
+    ]);
+    if (!valid) return;
     const button = $('#auth-submit');
     button.disabled = true;
     button.setAttribute('aria-busy', 'true');
@@ -59,7 +68,7 @@
       const data = await response.json();
       if (!response.ok || data.ok === false) {
         const error = data.error || data;
-        throw new Error(messages[error.code] || (response.status === 429 ? messages.TOO_MANY_REQUESTS : error.message) || '요청을 처리하지 못했습니다.');
+        throw Object.assign(new Error(messages[error.code] || (response.status === 429 ? messages.TOO_MANY_REQUESTS : error.message) || '요청을 처리하지 못했습니다.'), { code: error.code });
       }
       if (mode === 'login') { location.replace('/'); return; }
       $('#account-form').hidden = true;
@@ -69,7 +78,11 @@
         $('#auth-success-title').textContent = '관리자 설정을 마쳤습니다.';
         $('#auth-success-description').textContent = '방금 만든 관리자 계정으로 로그인해 주세요.';
       }
-    } catch (e) { showError(e.message || '네트워크 연결을 확인해 주세요.'); }
+    } catch (e) {
+      // 입력칸에 해당하는 오류는 그 칸 아래에, 그 밖의 오류는 상단 안내 영역에 표시한다
+      const field = fieldOfError(e.code);
+      if (field) FR.setFieldError(field, e.message); else showError(e.message || '네트워크 연결을 확인해 주세요.');
+    }
     finally { button.disabled = false; button.removeAttribute('aria-busy'); }
   });
   initialize();

@@ -38,3 +38,9 @@ kbd{font-family:var(--font);border:1px solid #e1e7d8;border-radius:3px;padding:1
 @media(max-width:600px){.nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:3px 5px}.nav-item{min-height:31px;height:31px;width:100%;padding:5px 3px;min-width:0}.nav-item span:not(.nav-count,.nav-plus){white-space:nowrap;font-size:11px}.sidebar{gap:13px}.page-head>button{height:34px;font-size:10px}.file-meta{color:#829373}.upload-guide .guide-item p{font-size:12px}.sheet-stage{min-height:300px}.field-page-label{margin-left:22px}}
 @media(min-width:1191px){.dashboard-columns{align-items:stretch;margin-bottom:22px}.dashboard-columns>.document-list-card{margin-bottom:0}.dashboard-aside{display:flex;align-items:stretch}.dashboard-aside>.activity-card{width:100%;margin-bottom:0;display:flex;flex-direction:column}.dashboard-aside .activity-chart{flex:1;min-height:93px}.dashboard-aside .activity-foot{margin-top:16px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* 문서 업로드 옵션: 콤보박스는 가장 긴 항목보다 조금만 넓게(한 줄 유지) */
+.upload-opts{flex-wrap:wrap;gap:12px 16px}
+.upload-opts label{width:auto;max-width:100%;min-width:0;flex:0 0 auto}
+.upload-opts select{width:auto;min-width:150px;max-width:min(100%,280px);padding-right:34px}
+.upload-opts #jr-split-count{width:96px}
