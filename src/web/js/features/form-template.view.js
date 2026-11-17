@@ -554,7 +554,7 @@ FR.formTemplateView = (() => {
         }
         if (["failed", "cancelled"].includes(j.status))
           throw new Error(j.error || "취소되었습니다.");
-        await new Promise((r) => setTimeout(r, 1000));
+        await FR.sleep(1000);
       }
       if (token === previewToken)
         throw new Error("전체 문서에서 처리 상태를 확인하세요.");

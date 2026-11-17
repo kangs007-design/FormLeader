@@ -74,7 +74,7 @@ FR.formJobView = (() => {
         return;
       }
       li.textContent = `${fileName} → ${ENGINE_LABEL[job.engineStatus] || STATUS_LABEL[job.status]}...`;
-      await new Promise((r) => setTimeout(r, 1000));
+      await FR.sleep(1000);
     }
     li.className = "ng";
     li.textContent = `${fileName} → 확인 시간 초과. 작업 현황에서 확인하세요.`;
@@ -116,13 +116,14 @@ FR.formJobView = (() => {
 
   async function loadStatus() {
     const jobs = await FR.api("GET", "/api/jobs");
+    const matchesSearch = FR.makeJobSearchFilter();
     const body = FR.$("#js-body");
     FR.$("#js-count").textContent = jobs.length;
     FR.$("#nav-job-count").textContent = jobs.length;
     const shown = jobs
       .slice()
       .reverse()
-      .filter(FR.jobMatchesSearch)
+      .filter(matchesSearch)
       .filter(
         (j) => statusFilter === "all" || FR.jobStatus(j).group === statusFilter,
       );
@@ -796,9 +797,30 @@ FR.formJobView = (() => {
   function schedulePoll(active) {
     clearTimeout(timer);
     if (active)
-      timer = setTimeout(() => {
-        if (FR.$("#tab-job-status").classList.contains("active")) refresh();
-      }, 2000);
+      timer = FR.pollTab("job-status", 2000, refresh);
+  }
+  /** 전체 문서 검색: 파일명·문서 유형은 즉시, 본문(2자 이상)은 서버 검색으로 반영. 최신 입력만 적용한다 */
+  function initSearch() {
+    let seq = 0;
+    const apply = FR.debounce(async () => {
+      const mine = ++seq;
+      const q = FR.state.search.trim();
+      let ids = [];
+      if (q.length >= 2) {
+        try {
+          ids = await FR.api("GET", `/api/jobs/search?q=${encodeURIComponent(q)}`);
+        } catch (_) {
+          /* 본문 검색 실패 시 파일명 검색만 적용 */
+        }
+      }
+      if (mine !== seq) return;
+      FR.state.contentIds = new Set(ids);
+      refresh();
+    }, 250);
+    FR.$("#js-search").addEventListener("input", (e) => {
+      FR.state.search = e.target.value;
+      apply();
+    });
   }
   async function refresh() {
     try {
@@ -928,6 +950,7 @@ FR.formJobView = (() => {
         uploadFiles([...e.dataTransfer.files]),
       );
       FR.$("#js-refresh").addEventListener("click", refresh);
+      initSearch();
       FR.$("#js-filters").addEventListener("click", (event) => {
         const button = event.target.closest("[data-filter]");
         if (!button) return;

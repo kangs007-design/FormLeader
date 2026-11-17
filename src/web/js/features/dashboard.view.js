@@ -7,7 +7,7 @@ FR.dashboardView = (() => {
   function renderRows(jobs) {
     const body = FR.$('#db-body');
     if (!jobs.length) {
-      body.replaceChildren(FR.emptyRow(6, FR.state.search ? '검색어와 일치하는 문서가 없습니다.' : filter === 'all' ? '첫 문서를 업로드하고 시작해 보세요.' : '이 상태의 문서가 없습니다.'));
+      body.replaceChildren(FR.emptyRow(6, filter === 'all' ? '첫 문서를 업로드하고 시작해 보세요.' : '이 상태의 문서가 없습니다.'));
       return;
     }
     body.replaceChildren(...jobs.map((j) => {
@@ -55,8 +55,8 @@ FR.dashboardView = (() => {
     FR.$('#nav-job-count').textContent = jobs.length;
     renderActivity(jobs);
 
-    renderRows(jobs.slice().reverse().filter(FR.jobMatchesSearch).filter((j) => filter === 'all' || FR.jobStatus(j).group === filter).slice(0, 6));
-    if (groups.run) timer = setTimeout(() => { if (FR.$('#tab-dashboard').classList.contains('active')) load(); }, 2000); // 처리 중이면 자동 갱신
+    renderRows(jobs.slice().reverse().filter((j) => filter === 'all' || FR.jobStatus(j).group === filter).slice(0, 6));
+    if (groups.run) timer = FR.pollTab('dashboard', 2000, load); // 처리 중이면 자동 갱신
   }
 
   function init() {

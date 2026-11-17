@@ -52,8 +52,32 @@ FR.icon = function icon(name) {
   return svg;
 };
 
-/** 상단 검색어 (파일명/문서 유형 필터) */
+/** 전체 문서 검색어 (파일명/문서 유형/본문) */
 FR.state = { search: '', contentIds: new Set() };
+
+/* ---------- 공통 유틸 (여러 화면에서 재사용) ---------- */
+FR.sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** 마지막 호출 후 wait ms 가 지나면 한 번만 실행 */
+FR.debounce = function debounce(fn, wait) {
+  let timer = null;
+  const wrapped = (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
+  wrapped.cancel = () => clearTimeout(timer);
+  return wrapped;
+};
+FR.fmtNumber = (n) => Number(n || 0).toLocaleString('ko-KR');
+/** 탭 섹션(#tab-이름)이 현재 보이는 중인지 */
+FR.isTabActive = (name) => { const tab = document.getElementById(`tab-${name}`); return !!tab && tab.classList.contains('active'); };
+/** interval 뒤에 해당 탭이 아직 보이는 중이면 fn 을 한 번 실행 (처리 중 목록 자동 갱신용). 반환값은 타이머 id */
+FR.pollTab = (tabName, interval, fn) => setTimeout(() => { if (FR.isTabActive(tabName)) fn(); }, interval);
+/** 조건(check)이 값을 돌려줄 때까지 interval 마다 확인. 제한 횟수 초과 시 undefined */
+FR.waitFor = async function waitFor(check, { interval = 1000, tries = 120 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    const result = await check(i);
+    if (result !== undefined) return result;
+    await FR.sleep(interval);
+  }
+  return undefined;
+};
 FR.syncJobCount = async () => { const jobs = await FR.api('GET', '/api/jobs'); FR.$('#nav-job-count').textContent = jobs.length; };
 
 FR.fileCell = function fileCell(job) {
@@ -73,11 +97,15 @@ FR.download = function download(name, content, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-FR.jobMatchesSearch = function jobMatchesSearch(job) {
+/** 검색어를 한 번만 소문자·공백제거해 두고(필터 호출마다 재계산하지 않도록) 목록 필터 함수를 만든다 */
+FR.makeJobSearchFilter = function makeJobSearchFilter() {
   const q = FR.state.search.trim().toLowerCase();
-  if (!q) return true;
-  const hay = [job.fileName, job.result && job.result.docType, job.id].filter(Boolean).join(' ').toLowerCase();
-  return hay.includes(q) || FR.state.contentIds.has(job.id); // 파일명·문서 유형 또는 본문 일치
+  if (!q) return () => true;
+  const contentIds = FR.state.contentIds;
+  return (job) => contentIds.has(job.id)
+    || (job.fileName || '').toLowerCase().includes(q)
+    || (job.result && job.result.docType ? job.result.docType.toLowerCase().includes(q) : false)
+    || String(job.id).toLowerCase().includes(q);
 };
 
 /** 작업 → 화면 상태 표시 (알약 배지 색/문구). 서식이 적용됐고 검증 실패가 있으면 '검토 필요' */

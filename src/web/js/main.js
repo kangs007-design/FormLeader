@@ -90,7 +90,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
-      FR.$("#global-search").focus();
+      FR.showTab("job-status");
+      FR.$("#js-search").focus();
     }
     if (
       e.key === "?" &&
@@ -112,36 +113,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     .forEach((b) =>
       b.addEventListener("click", () => FR.showTab(b.dataset.goto)),
     );
-
-  let searchTimer = null;
-  let searchSeq = 0;
-  FR.$("#global-search").addEventListener("input", (e) => {
-    FR.state.search = e.target.value;
-    const active = document.querySelector(".tab.active");
-    if (
-      e.target.value &&
-      active &&
-      !["tab-dashboard", "tab-job-status"].includes(active.id)
-    )
-      FR.showTab("job-status");
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(async () => {
-      // 본문 검색 결과(작업 id 목록)를 가져온 뒤 목록을 다시 그린다. 최신 입력만 반영한다.
-      const seq = ++searchSeq;
-      const q = FR.state.search.trim();
-      let ids = [];
-      if (q.length >= 2) {
-        try {
-          ids = await FR.api("GET", `/api/jobs/search?q=${encodeURIComponent(q)}`);
-        } catch (_) {
-          /* 본문 검색 실패 시 파일명 검색만 적용 */
-        }
-      }
-      if (seq !== searchSeq) return;
-      FR.state.contentIds = new Set(ids);
-      FR.refreshActive();
-    }, 250);
-  });
 
   const initial = location.hash.slice(1);
   FR.showTab(initial === "ocr-result" ? "job-status" : initial || "dashboard");

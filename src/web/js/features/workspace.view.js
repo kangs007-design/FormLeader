@@ -471,7 +471,7 @@ FR.compareView = (() => {
       }
       if (["failed", "cancelled"].includes(x.status))
         throw new Error(x.error || "문서 인식이 취소됐습니다.");
-      await new Promise((r) => setTimeout(r, 1000));
+      await FR.sleep(1000);
     }
     throw new Error("인식 중입니다. 전체 문서에서 완료 후 선택하세요.");
   }

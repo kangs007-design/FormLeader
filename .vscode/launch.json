@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "DigitalLeader 실행",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/server.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "windows": { "runtimeExecutable": "C:\Program Files\nodejs\node.exe" }
+    },
+    {
+      "name": "DigitalLeader 실행 (Mock TextSense)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/start-mock.script.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "windows": { "runtimeExecutable": "C:\Program Files\nodejs\node.exe" }
+    },
+    {
+      "name": "테스트 전체",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/test.script.js",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "windows": { "runtimeExecutable": "C:\Program Files\nodejs\node.exe" }
+    }
+  ]
+}

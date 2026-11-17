@@ -7,6 +7,7 @@ const { signInputFile } = require("../../common/file-access.util");
  */
 const fs = require("fs");
 const path = require("path");
+const { readJsonFileSync } = require("../../common/json-file.util");
 const { SqliteRepository } = require("../../common/sqlite.repository");
 const {
   documentGeometry,
@@ -91,7 +92,7 @@ class FormJobService {
       if (!entry || entry.mtime !== mtime) {
         let text = "";
         try {
-          const pages = JSON.parse(fs.readFileSync(file, "utf8"))?.document?.pages || {};
+          const pages = readJsonFileSync(file)?.document?.pages || {};
           text = Object.values(pages).map((p) => p.content || "").join("\n");
         } catch (_) {
           /* 읽을 수 없는 결과는 검색에서 제외 */
@@ -677,7 +678,7 @@ class FormJobService {
       if (id) await this.assertActive(id);
       if (fs.existsSync(file)) {
         try {
-          return JSON.parse(fs.readFileSync(file, "utf8"));
+          return readJsonFileSync(file);
         } catch (_) {
           /* 쓰는 중 */
         }
@@ -719,7 +720,7 @@ class FormJobService {
     if (pageSizes.length && !job.pageSizes?.length)
       await this._patch(id, { pageSizes });
     return this.ocrResultService.view(
-      JSON.parse(fs.readFileSync(file, "utf8")),
+      readJsonFileSync(file),
       { pageSize: this._pageSize(job), pageSizes },
     );
   }
@@ -811,7 +812,7 @@ class FormJobService {
     const file = path.join(this.config.storage.outputDir, `${job.id}.json`);
     if (!fs.existsSync(file))
       throw AppError.notFound("OCR 결과 파일이 없습니다.");
-    return JSON.parse(fs.readFileSync(file, "utf8"));
+    return readJsonFileSync(file);
   }
 
   async diagnostics(id) {

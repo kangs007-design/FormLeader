@@ -81,10 +81,6 @@
       <!-- 상단바 -->
       <header class="topbar">
         <div class="breadcrumb"><svg class="icon"><use href="#i-folder"/></svg><span>Workspace</span><span class="crumb-slash">/</span><strong id="current-page">워크스페이스</strong></div>
-        <div class="search">
-          <svg class="icon"><use href="#i-search"/></svg>
-          <input id="global-search" type="search" placeholder="파일명·내용 검색" aria-label="문서 검색 (파일명, 문서 유형, 본문 내용)" autocomplete="off"><kbd>Ctrl K</kbd>
-        </div>
         <span class="topbar-divider"></span><span id="today-label" class="today-label"></span>
         <div class="user-chip"><button id="profile-open" class="profile-trigger" aria-label="내 계정"><span class="avatar" id="current-user-avatar"></span><span class="user-meta"><strong id="current-user-name"></strong><small id="current-user-role"></small></span><svg class="icon"><use href="#i-chev-r"/></svg></button><button id="logout-button" class="icon-btn" title="로그아웃" aria-label="로그아웃"><svg class="icon"><use href="#i-logout"/></svg></button></div>
       </header>
@@ -144,7 +140,7 @@
             <button id="js-refresh"><svg class="icon"><use href="#i-refresh"/></svg>새로고침</button>
           </div>
           <div class="card">
-            <div class="library-toolbar"><div class="filter-tabs" id="js-filters" role="group" aria-label="전체 문서 필터"><button class="active" data-filter="all" aria-pressed="true">전체 <span id="js-count">0</span></button><button data-filter="ok" aria-pressed="false">완료</button><button data-filter="review" aria-pressed="false">확인 필요</button><button data-filter="run" aria-pressed="false">처리 중</button></div><button class="primary sm" data-goto="job-request"><svg class="icon"><use href="#i-plus"/></svg>문서 업로드</button></div>
+            <div class="library-toolbar"><div class="filter-tabs" id="js-filters" role="group" aria-label="전체 문서 필터"><button class="active" data-filter="all" aria-pressed="true">전체 <span id="js-count">0</span></button><button data-filter="ok" aria-pressed="false">완료</button><button data-filter="review" aria-pressed="false">확인 필요</button><button data-filter="run" aria-pressed="false">처리 중</button></div><label class="search library-search"><svg class="icon"><use href="#i-search"/></svg><input id="js-search" type="search" placeholder="파일명·내용 검색" aria-label="문서 검색 (파일명, 문서 유형, 본문 내용)" autocomplete="off"><kbd>Ctrl K</kbd></label><button class="primary sm" data-goto="job-request"><svg class="icon"><use href="#i-plus"/></svg>문서 업로드</button></div>
             <div class="table-scroll"><table class="grid"><thead><tr><th>파일명</th><th>처리 상태</th><th>서식</th><th>요청 일시</th><th></th></tr></thead><tbody id="js-body"></tbody></table></div>
           </div>
         </section>
