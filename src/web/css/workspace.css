@@ -44,3 +44,7 @@ kbd{font-family:var(--font);border:1px solid #e1e7d8;border-radius:3px;padding:1
 .upload-opts label{width:auto;max-width:100%;min-width:0;flex:0 0 auto}
 .upload-opts select{width:auto;min-width:150px;max-width:min(100%,280px);padding-right:34px}
 .upload-opts #jr-split-count{width:96px}
+
+/* 내보내기 형식 콤보박스: 선택된 항목 텍스트가 잘리지 않도록 내용 너비에 맞춤 */
+.viewer-head-actions select{width:auto;max-width:none;min-width:150px;font-size:12px;padding-right:34px}
+.viewer-head-actions button{font-size:12px;white-space:nowrap;flex:none}
