@@ -6,7 +6,7 @@ const origin = process.env.PRODUCT_TEST_ORIGIN;
 const setupToken = process.env.FORMREADER_SETUP_TOKEN;
 const password = 'Product-smoke-password-2026';
 
-test('Nginx → Tomcat WAR → MariaDB: stage 1', { skip: !origin || !setupToken }, async (t) => {
+test('Nginx → Tomcat WAR → MariaDB: authentication and templates', { skip: !origin || !setupToken }, async (t) => {
   async function request(method, url, body, cookie = '', headers = {}) {
     const response = await fetch(new URL(url, origin), {
       method, redirect: 'manual', headers: { Origin: origin, 'X-Requested-With': 'TextSense', Cookie: cookie,
@@ -44,8 +44,8 @@ test('Nginx → Tomcat WAR → MariaDB: stage 1', { skip: !origin || !setupToken
     assert.match(admin.headers.get('set-cookie'), /HttpOnly; SameSite=Strict/);
     assert.equal((await request('GET', '/', undefined, admin.cookie)).status, 200);
     const info = await request('GET', '/api/account/me', undefined, admin.cookie);
-    assert.equal(info.json.data.capabilities.ocrProcessing, false);
-    assert.equal((await request('POST', '/api/jobs', {}, admin.cookie)).json.error.code, 'MIGRATION_PENDING');
+    assert.equal(info.json.data.capabilities.ocrProcessing, true);
+    assert.equal((await request('POST', '/api/jobs', {}, admin.cookie)).status, 400);
   });
   await t.test('approval, role injection, authorization and session revocation', async () => {
     const pending = await request('POST', '/api/auth/sign-up/email', { name: '신청자', email: 'user@product.example.test', password, role: 'admin', status: 'active' });

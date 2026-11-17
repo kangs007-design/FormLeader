@@ -21,12 +21,29 @@ services:
       DB_NAME: formreader
       DB_USER: formreader
       DB_PASSWORD: ${DB_PASSWORD:?Set database application password}
+      FORMREADER_DATA_DIR: /var/lib/formreader
+      TEXTSENSE_BASE_URL: ${TEXTSENSE_BASE_URL:-http://192.168.0.25:7777}
+      TEXTSENSE_ENGINE_URL: ${TEXTSENSE_ENGINE_URL:-http://textsense:8080}
+      TEXTSENSE_TASK_NAME: ${TEXTSENSE_TASK_NAME:-formreader-product}
+      FORMREADER_INPUT_PUBLIC_URL: ${FORMREADER_INPUT_PUBLIC_URL:-}
+      EPAPYRUS_INPUT_URI: ${EPAPYRUS_INPUT_URI:-file:///ePapyrus/data/input}
+      EPAPYRUS_OUTPUT_URI: ${EPAPYRUS_OUTPUT_URI:-file:///ePapyrus/data/output}
+      FTP_ENABLED: ${FTP_ENABLED:-false}
+      FTP_BIND_ADDRESS: 0.0.0.0
+      FTP_PUBLIC_HOST: ${FTP_PUBLIC_HOST:-127.0.0.1}
+      FTP_PORT: ${FTP_PORT:-2121}
+      FTP_PASV_MIN: ${FTP_PASV_MIN:-50000}
+      FTP_PASV_MAX: ${FTP_PASV_MAX:-50020}
+      JOB_TIMEOUT_MS: ${JOB_TIMEOUT_MS:-120000}
+      OUTPUT_FILE_WAIT_MS: ${OUTPUT_FILE_WAIT_MS:-30000}
+      TEXTSENSE_CANCEL_PATH: ${TEXTSENSE_CANCEL_PATH:-}
       CATALINA_OPTS: -Dorg.apache.tomcat.util.digester.PROPERTY_SOURCE=org.apache.tomcat.util.digester.EnvironmentPropertySource
     volumes:
       - ./offline/ROOT.war:/usr/local/tomcat/webapps/ROOT.war:ro
       - ./offline/lib/mariadb-java-client-4.0.0.jar:/usr/local/tomcat/lib/mariadb-java-client-4.0.0.jar:ro
       - ./deploy/ROOT.xml:/usr/local/tomcat/conf/Catalina/localhost/ROOT.xml:ro
       - ./deploy/server.xml:/usr/local/tomcat/conf/server.xml:ro
+      - documents:/var/lib/formreader
     depends_on:
       mariadb: { condition: service_healthy }
     restart: unless-stopped
@@ -51,6 +68,7 @@ services:
     networks: [database]
 volumes:
   database:
+  documents:
 networks:
   web:
   database: { internal: true }

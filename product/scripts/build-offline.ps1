@@ -14,6 +14,7 @@ Copy-Item -LiteralPath (Join-Path $productRoot 'was/target/ROOT.war') -Destinati
 Copy-Item -Path (Join-Path $repositoryRoot 'src/web/*') -Destination "$bundle/web" -Recurse -Force
 Copy-Item -Path (Join-Path $productRoot 'deploy'), (Join-Path $productRoot 'db') -Destination $bundle -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $productRoot 'compose.yaml'), (Join-Path $productRoot '.env.example') -Destination $bundle -Force
+Copy-Item -LiteralPath (Join-Path $productRoot 'compose.ftp.yaml') -Destination $bundle -Force
 # The portable bundle's compose paths point at its own artifacts.
 $compose = Get-Content -LiteralPath "$bundle/compose.yaml" -Raw
 $compose.Replace('./offline/', './') | Set-Content -LiteralPath "$bundle/compose.yaml" -Encoding utf8

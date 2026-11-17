@@ -1,0 +1,9 @@
+# Opt-in FTP result receiver. Use with compose.yaml and an internal host address.
+services:
+  tomcat:
+    environment:
+      FTP_ENABLED: "true"
+      FTP_PUBLIC_HOST: ${FTP_PUBLIC_HOST:?Set an address reachable from TextSense}
+    ports:
+      - "${FTP_HOST_BIND_ADDRESS:-127.0.0.1}:${FTP_PORT:-2121}:${FTP_PORT:-2121}"
+      - "${FTP_HOST_BIND_ADDRESS:-127.0.0.1}:${FTP_PASV_MIN:-50000}-${FTP_PASV_MAX:-50020}:${FTP_PASV_MIN:-50000}-${FTP_PASV_MAX:-50020}"

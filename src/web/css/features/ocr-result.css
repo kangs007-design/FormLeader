@@ -14,6 +14,7 @@
 .toolbar .sep { width: 1px; height: 18px; background: var(--c-line-strong); margin: 0 6px; }
 .toolbar .tb-btn { width: 28px; height: 28px; border: 0; background: transparent; border-radius: 6px; display: grid; place-items: center; color: var(--c-text-sub); }
 .toolbar .tb-btn:hover { background: #e8eefb; }
+.toolbar #or-rotate { width: auto; min-width: 56px; padding: 0 8px; white-space: nowrap; flex: none; }
 .toolbar .tb-label { min-width: 46px; text-align: center; font-weight: 600; color: var(--c-text); }
 
 /* 보기 전환(원본/텍스트) · 인식 영역 토글 */

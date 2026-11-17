@@ -2,7 +2,7 @@
 
 현재 파일럿은 **`v1.0.0-pilot.1`** 태그와 **`release/pilot-v1`** 브랜치로 보존했습니다. 제품판은 **`feature/product-web-was-rdb`**에서 Nginx / Tomcat / MariaDB로 단계적으로 전환합니다. [제품판 실행·폐쇄망 패키징·이전 범위](product/README.md), [Pilot v1 릴리즈 기록](docs/releases/pilot-v1.md)을 참고하세요.
 
-아래 실행 안내는 기존 **Node.js 파일럿** 기준입니다. 제품판 1단계는 Java 인증·서식 API까지 제공하며 OCR 전체 기능은 후속 이전 대상입니다.
+아래 실행 안내는 기존 **Node.js 파일럿** 기준입니다. Java 제품판에도 문서 인식·검수·7종 내보내기, 샘플 OCR, 분리·비교, 재처리·취소, 업무 전송·운영 기능을 구현했습니다. 제품판 실행은 위 안내를 따릅니다.
 
 TextSense AI OCR 과 연계해 이미지/PDF 내 정형 서식을 인식하고 Key-Value 로 변환하는 웹 도구입니다.
 Node.js 22 이상과 패키지 설치(`npm ci`)가 필요합니다.

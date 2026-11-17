@@ -74,7 +74,7 @@ final class Templates {
         Set<String> names = new HashSet<>();
         for (JsonNode value : values) if (!names.add(value.path("name").asText())) throw ApiError.bad("이름이 중복되었습니다.");
     }
-    private static void validateOptions(JsonNode options) {
+    static void validateOptions(JsonNode options) {
         if (!options.isObject()) throw ApiError.bad("엔진 요청 옵션은 객체여야 합니다.");
         Iterator<String> fields = options.fieldNames();
         while (fields.hasNext()) {
