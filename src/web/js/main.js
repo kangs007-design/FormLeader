@@ -18,8 +18,9 @@ const TAB_NAMES = {
   "ocr-result": "문서 검수",
   "ocr-connect": "연결 설정",
   users: "사용자 관리",
+  compare: "문서 비교",
+  operations: "운영 관리",
 };
-Object.assign(TAB_NAMES, { compare: "문서 비교", operations: "운영 관리" });
 
 FR.showTab = function showTab(name) {
   if (!TAB_NAMES[name]) name = "dashboard";
@@ -113,6 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
 
   let searchTimer = null;
+  let searchSeq = 0;
   FR.$("#global-search").addEventListener("input", (e) => {
     FR.state.search = e.target.value;
     const active = document.querySelector(".tab.active");
@@ -123,7 +125,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     )
       FR.showTab("job-status");
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(FR.refreshActive, 200);
+    searchTimer = setTimeout(async () => {
+      // 본문 검색 결과(작업 id 목록)를 가져온 뒤 목록을 다시 그린다. 최신 입력만 반영한다.
+      const seq = ++searchSeq;
+      const q = FR.state.search.trim();
+      let ids = [];
+      if (q.length >= 2) {
+        try {
+          ids = await FR.api("GET", `/api/jobs/search?q=${encodeURIComponent(q)}`);
+        } catch (_) {
+          /* 본문 검색 실패 시 파일명 검색만 적용 */
+        }
+      }
+      if (seq !== searchSeq) return;
+      FR.state.contentIds = new Set(ids);
+      FR.refreshActive();
+    }, 250);
   });
 
   const initial = location.hash.slice(1);

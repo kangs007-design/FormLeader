@@ -80,6 +80,8 @@ FR.formJobView = (() => {
     li.textContent = `${fileName} → 확인 시간 초과. 작업 현황에서 확인하세요.`;
   }
 
+  const MAX_UPLOAD_MB = 45; // 서버 요청 한도(60MB, Base64 포함)에 맞춘 원본 파일 최대 크기
+
   async function uploadFiles(files) {
     if (!files.length) return;
     FR.$("#jr-progress").hidden = false;
@@ -88,6 +90,11 @@ FR.formJobView = (() => {
     for (const file of files) {
       const li = FR.el("li", {}, `${file.name} 업로드 중...`);
       log.prepend(li);
+      if (file.size > MAX_UPLOAD_MB * 1048576) {
+        li.className = "ng";
+        li.textContent = `${file.name} → 파일이 너무 큽니다. 파일당 최대 ${MAX_UPLOAD_MB}MB까지 올릴 수 있습니다.`;
+        continue;
+      }
       try {
         const job = await FR.api("POST", "/api/jobs", {
           fileName: file.name,

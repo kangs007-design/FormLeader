@@ -35,7 +35,7 @@ function readJsonBody(req, limitBytes = 60 * 1024 * 1024) {
       size += c.length;
       if (size > limitBytes) {
         rejected = true;
-        reject(AppError.badRequest('요청 본문이 너무 큽니다.'));
+        reject(AppError.badRequest(`요청이 너무 큽니다. 파일은 약 ${Math.floor((limitBytes * 0.75) / 1048576)}MB 이하로 올려 주세요.`));
         return; // 소켓은 끊지 않고 나머지 데이터를 버려서 에러 응답이 전달되게 한다
       }
       chunks.push(c);

@@ -428,16 +428,19 @@ FR.formTemplateView = (() => {
       FR.setMsg(FR.$("#ft-msg"), e.message, false);
     }
   }
+  /** 열려 있는 샘플 PDF 해제 (pdf.js 문서 객체는 loadingTask 로 해제한다) */
+  async function releasePdf() {
+    const old = pdf;
+    pdf = null;
+    if (old) await old.loadingTask.destroy().catch(() => {});
+  }
   async function select(id) {
     currentId = id;
     await fill(forms.find((f) => f.id === id));
   }
   async function fill(f) {
     previewToken++;
-    if (pdf) {
-      await pdf.destroy();
-      pdf = null;
-    }
+    await releasePdf();
     sample = null;
     page = 1;
     selected = 0;
@@ -692,10 +695,7 @@ FR.formTemplateView = (() => {
         const file = e.target.files[0];
         if (!file) return;
         try {
-          if (pdf) {
-            await pdf.destroy();
-            pdf = null;
-          }
+          await releasePdf();
           sample = await FR.api("POST", "/api/samples", {
             fileName: file.name,
             contentBase64: await FR.readFileAsBase64(file),
@@ -730,11 +730,12 @@ FR.formTemplateView = (() => {
         )
           return;
         try {
-          await FR.api("POST", `/api/forms/${currentId}/restore`, {
+          const restored = await FR.api("POST", `/api/forms/${currentId}/restore`, {
             versionId: FR.$("#ft-versions").value,
           });
           await load();
           await select(currentId);
+          FR.setMsg(FR.$("#ft-msg"), `선택한 버전으로 복원하여 v${restored.version}을 저장했습니다.`);
         } catch (e) {
           FR.setMsg(FR.$("#ft-msg"), e.message, false);
         }

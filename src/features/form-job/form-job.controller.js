@@ -3,6 +3,9 @@
 
 function registerFormJobRoutes(router, { formJobService }) {
   router.add("GET", "/api/jobs", async () => formJobService.list());
+  router.add("GET", "/api/jobs/search", async ({ query }) =>
+    formJobService.searchContent(query.q),
+  );
   router.add("GET", "/api/jobs/:id", async ({ params }) =>
     formJobService.get(params.id),
   );

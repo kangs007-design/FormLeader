@@ -83,7 +83,7 @@
         <div class="breadcrumb"><svg class="icon"><use href="#i-folder"/></svg><span>Workspace</span><span class="crumb-slash">/</span><strong id="current-page">워크스페이스</strong></div>
         <div class="search">
           <svg class="icon"><use href="#i-search"/></svg>
-          <input id="global-search" type="search" placeholder="문서 검색" aria-label="문서 검색" autocomplete="off"><kbd>Ctrl K</kbd>
+          <input id="global-search" type="search" placeholder="파일명·내용 검색" aria-label="문서 검색 (파일명, 문서 유형, 본문 내용)" autocomplete="off"><kbd>Ctrl K</kbd>
         </div>
         <span class="topbar-divider"></span><span id="today-label" class="today-label"></span>
         <div class="user-chip"><button id="profile-open" class="profile-trigger" aria-label="내 계정"><span class="avatar" id="current-user-avatar"></span><span class="user-meta"><strong id="current-user-name"></strong><small id="current-user-role"></small></span><svg class="icon"><use href="#i-chev-r"/></svg></button><button id="logout-button" class="icon-btn" title="로그아웃" aria-label="로그아웃"><svg class="icon"><use href="#i-logout"/></svg></button></div>
@@ -132,7 +132,7 @@
               <strong>문서를 여기에 놓아주세요</strong><span class="hint">또는 클릭해서 컴퓨터의 파일을 선택하세요</span><span class="choose-file">파일 선택 <svg class="icon"><use href="#i-plus"/></svg></span><div class="file-types"><span>PDF</span><span>JPG</span><span>PNG</span><span>TIFF</span><span>BMP</span></div>
             </div>
             <input id="jr-file" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp" hidden>
-            <div class="upload-caption"><svg class="icon"><use href="#i-check-circle"/></svg>문서 한 개를 올리면 인식 완료 후 검수 화면이 열립니다.</div>
+            <div class="upload-caption"><svg class="icon"><use href="#i-check-circle"/></svg>문서 한 개를 올리면 인식 완료 후 검수 화면이 열립니다. (PDF·PNG·JPG·TIFF·BMP, 파일당 최대 45MB)</div>
             <div id="jr-progress" hidden><div class="card-head"><h3>업로드 및 처리 상태</h3><span class="hint">자동 업데이트</span></div><ul id="jr-log" class="log" aria-live="polite"></ul></div>
           </div><aside class="upload-guide"><span class="section-kicker">A BETTER SCAN</span><h2>좋은 원본이<br>좋은 결과를 만듭니다.</h2><div class="guide-item"><span>01</span><div><h3>선명한 문서</h3><p>글자가 잘 보이는 원본이나 스캔 파일을 사용하세요.</p></div></div><div class="guide-item"><span>02</span><div><h3>서식으로 더 정확하게</h3><p>반복되는 양식은 서식을 지정하면 필요한 값만 추출할 수 있어요.</p></div></div><div class="guide-item"><span>03</span><div><h3>마지막 확인까지</h3><p>인식 결과를 원본과 비교하고 수정한 뒤 저장하세요.</p></div></div><button class="text-button" data-goto="form-template">서식 라이브러리 열기 <svg class="icon"><use href="#i-arrow"/></svg></button></aside></div>
         </section>

@@ -49,6 +49,22 @@ const { registerAuthRoutes } = require("./features/auth/auth.controller");
 const { verifyInputFile } = require("./common/file-access.util");
 const { AppError } = require("./common/app.error");
 
+/** 화면은 같은 출처의 스크립트·스타일만 사용한다 (pdf.js 는 Web Worker/wasm 사용) */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "worker-src 'self' blob:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+
 /** 서비스와 HTTP 서버를 조립한다. (listen 은 start 에서) */
 function createApp(config = createConfig()) {
   const log = createLogger("server");
@@ -106,6 +122,8 @@ function createApp(config = createConfig()) {
       const url = new URL(req.url, "http://localhost");
       res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("Referrer-Policy", "same-origin");
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("Content-Security-Policy", CSP);
       await authService.ready;
       if (url.pathname.startsWith("/api/auth/")) {
         res.setHeader("Cache-Control", "no-store");

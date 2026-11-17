@@ -229,6 +229,7 @@ FR.operationsView = (() => {
   async function act(fn) {
     try {
       await fn();
+      await load(); // 저장된 값 기준으로 입력칸(토큰 등)과 안내를 갱신
       FR.setMsg(FR.$("#op-msg"), "저장되었습니다.");
     } catch (e) {
       FR.setMsg(FR.$("#op-msg"), e.message, false);

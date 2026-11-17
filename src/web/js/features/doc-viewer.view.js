@@ -69,7 +69,7 @@ FR.docViewer = (() => {
   function closePdf() {
     const old = state.pdfPromise;
     state.pdfPromise = null;
-    if (old) old.then((doc) => doc.destroy()).catch(() => {});
+    if (old) old.then((doc) => doc.loadingTask.destroy()).catch(() => {});
   }
 
   /* ---------- 공통: 툴바 상태 ---------- */

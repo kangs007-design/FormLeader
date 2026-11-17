@@ -23,6 +23,19 @@ const { AppError } = require("../../common/app.error");
 const { createLogger } = require("../../common/logger.util");
 
 const ALLOWED_EXT = [".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"];
+/** 확장자별 파일 시작 바이트(시그니처). 내용이 다른 형식이면 엔진에 보내기 전에 거절한다. */
+const SIGNATURES = {
+  ".png": [[0x89, 0x50, 0x4e, 0x47]],
+  ".jpg": [[0xff, 0xd8, 0xff]],
+  ".jpeg": [[0xff, 0xd8, 0xff]],
+  ".tif": [[0x49, 0x49, 0x2a, 0x00], [0x4d, 0x4d, 0x00, 0x2a]],
+  ".tiff": [[0x49, 0x49, 0x2a, 0x00], [0x4d, 0x4d, 0x00, 0x2a]],
+  ".bmp": [[0x42, 0x4d]],
+};
+function matchesFileType(ext, bytes) {
+  if (ext === ".pdf") return bytes.subarray(0, 1024).includes("%PDF-");
+  return (SIGNATURES[ext] || []).some((sig) => sig.every((b, i) => bytes[i] === b));
+}
 const MAX_TRANSIENT_STATUS_ERRORS = 5;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -57,6 +70,38 @@ class FormJobService {
           : null,
       })),
     );
+  }
+
+  /** 문서 본문(OCR 텍스트)에 검색어가 들어 있는 작업 id 목록. 본문은 파일 수정시각 기준으로 캐시한다. */
+  async searchContent(query) {
+    const q = String(query || "").trim().toLowerCase();
+    if (q.length < 2) return [];
+    this.textCache = this.textCache || new Map();
+    const hits = [];
+    for (const job of await this.repo.list()) {
+      if (job.status !== "done") continue;
+      const file = path.join(this.config.storage.outputDir, `${job.id}.json`);
+      let mtime;
+      try {
+        mtime = fs.statSync(file).mtimeMs;
+      } catch (_) {
+        continue;
+      }
+      let entry = this.textCache.get(job.id);
+      if (!entry || entry.mtime !== mtime) {
+        let text = "";
+        try {
+          const pages = JSON.parse(fs.readFileSync(file, "utf8"))?.document?.pages || {};
+          text = Object.values(pages).map((p) => p.content || "").join("\n");
+        } catch (_) {
+          /* 읽을 수 없는 결과는 검색에서 제외 */
+        }
+        entry = { mtime, text: (text + "\n" + (job.review?.text || "")).toLowerCase() };
+        this.textCache.set(job.id, entry);
+      }
+      if (entry.text.includes(q)) hits.push(job.id);
+    }
+    return hits;
   }
 
   /** Keep human corrections separate from the engine output. */
@@ -272,14 +317,16 @@ class FormJobService {
     )
       throw AppError.badRequest("문서당 페이지 수는 1~10000이어야 합니다.");
 
+    const bytes = Buffer.from(contentBase64, "base64");
+    if (!matchesFileType(ext, bytes))
+      throw AppError.badRequest(
+        `파일 내용이 ${ext} 형식이 아니거나 손상되었습니다. 원본 파일을 확인한 뒤 다시 올려 주세요.`,
+      );
     const id = createId("job");
     const storedName = `${id}${ext}`;
     const { inputDir } = this.config.storage;
     fs.mkdirSync(inputDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(inputDir, storedName),
-      Buffer.from(contentBase64, "base64"),
-    );
+    fs.writeFileSync(path.join(inputDir, storedName), bytes);
     const pageSizes = await documentGeometry(
       path.join(inputDir, storedName),
       this.config.pdfOcrScale,
@@ -964,4 +1011,4 @@ class FormJobService {
   }
 }
 
-module.exports = { FormJobService };
+module.exports = { FormJobService, matchesFileType };

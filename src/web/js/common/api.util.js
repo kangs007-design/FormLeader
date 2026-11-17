@@ -53,7 +53,7 @@ FR.icon = function icon(name) {
 };
 
 /** 상단 검색어 (파일명/문서 유형 필터) */
-FR.state = { search: '' };
+FR.state = { search: '', contentIds: new Set() };
 FR.syncJobCount = async () => { const jobs = await FR.api('GET', '/api/jobs'); FR.$('#nav-job-count').textContent = jobs.length; };
 
 FR.fileCell = function fileCell(job) {
@@ -77,7 +77,7 @@ FR.jobMatchesSearch = function jobMatchesSearch(job) {
   const q = FR.state.search.trim().toLowerCase();
   if (!q) return true;
   const hay = [job.fileName, job.result && job.result.docType, job.id].filter(Boolean).join(' ').toLowerCase();
-  return hay.includes(q);
+  return hay.includes(q) || FR.state.contentIds.has(job.id); // 파일명·문서 유형 또는 본문 일치
 };
 
 /** 작업 → 화면 상태 표시 (알약 배지 색/문구). 서식이 적용됐고 검증 실패가 있으면 '검토 필요' */
