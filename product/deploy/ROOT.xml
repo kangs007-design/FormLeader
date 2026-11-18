@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+  <Resource name="jdbc/FormReader" auth="Container" type="javax.sql.DataSource"
+    factory="org.apache.tomcat.dbcp.dbcp2.BasicDataSourceFactory"
+    driverClassName="org.mariadb.jdbc.Driver"
+    url="jdbc:mariadb://${DB_HOST}:${DB_PORT}/${DB_NAME}?connectTimeout=5000&amp;socketTimeout=15000"
+    username="${DB_USER}" password="${DB_PASSWORD}"
+    initialSize="1" maxTotal="20" maxIdle="5" maxWaitMillis="5000"
+    testOnBorrow="true" validationQuery="SELECT 1" validationQueryTimeout="3"/>
+  <CookieProcessor sameSiteCookies="strict"/>
+</Context>

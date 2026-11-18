@@ -1,12 +1,25 @@
-# DigitalLeader v1.0 (Node.js) — TextSense AI OCR 연동
+# FormReader — Pilot v1 / 제품판 전환
+
+현재 파일럿은 **`v1.0.0-pilot.1`** 태그와 **`release/pilot-v1`** 브랜치로 보존했습니다. 제품판은 **`feature/product-web-was-rdb`**에서 Nginx / Tomcat / MariaDB로 단계적으로 전환합니다. [제품판 실행·폐쇄망 패키징·이전 범위](product/README.md), [Pilot v1 릴리즈 기록](docs/releases/pilot-v1.md)을 참고하세요.
+
+| 구분 | 기존 Pilot v1 | 현재 제품판 |
+| --- | --- | --- |
+| WEB | Node.js에서 화면 제공 | Nginx에서 화면 제공 |
+| WAS | Node.js / JavaScript | Java WAR / Tomcat |
+| DB | SQLite | MariaDB |
+| 화면 | HTML·CSS·JavaScript | 기존 화면 재사용 |
+| OCR 엔진 | TextSense | 동일한 TextSense 사용 |
+
+아래 실행 안내는 기존 **Node.js 파일럿** 기준입니다. Java 제품판에도 문서 인식·검수·7종 내보내기, 샘플 OCR, 분리·비교, 재처리·취소, 업무 전송·운영 기능을 구현했습니다. 제품판 실행은 위 안내를 따릅니다.
 
 TextSense AI OCR 과 연계해 이미지/PDF 내 정형 서식을 인식하고 Key-Value 로 변환하는 웹 도구입니다.
-외부 패키지 없이 Node.js(18+)만으로 동작합니다. (`npm install` 불필요)
+Node.js 22 이상과 패키지 설치(`npm ci`)가 필요합니다.
 
 ## 바로 실행
 
 ```bash
 # 1) VPN 없이 화면/연동 확인 (내장 Mock TextSense 사용)
+npm ci
 npm run start:mock          # → http://localhost:3000
 
 # 2) 실서버 사용: .env.example 을 .env 로 복사 후 값 수정
@@ -154,7 +167,7 @@ API 로 직접 올릴 때는 `POST /api/jobs` 본문에 `options` 를 넣습니�
 - 서식 설정 화면의 미리보기는 이미지만 지원하며 PDF 는 좌표를 직접 입력합니다.
 - 문서 확인의 원본 표시: PDF·PNG·JPG·BMP 지원. TIFF 는 브라우저가 표시하지 못해 자동으로 `텍스트` 보기로 대체됩니다. `인식 영역` 오버레이는 TextSense 가 PDF 를 72dpi 의 2배로 변환한다는 관찰값(`doc-viewer.view.js` 의 `PDF_OCR_SCALE`)을 기준으로 위치를 맞추며, 인식 좌표가 이를 넘으면 자동 보정합니다. 원본 파일은 `GET /api/jobs/<작업ID>/file` 로만 제공됩니다(작업 id 로만 접근, 경로 직접 지정 불가).
 - 완료 콜백(`/api/textsense/callback`)은 인증이 없으므로 내부망/VPN 에서만 켜세요. (켜지 않으면 경로 자체가 없습니다)
-- 로그인/인증은 포함하지 않았습니다. 내부망 전용으로 사용하세요.
+- 로그인·가입 승인·관리자/일반 사용자 권한을 포함합니다. 최초 관리자는 서버 PC의 localhost에서 생성합니다.
 - 자동 테스트(`npm test`)는 공식 문서 기반 Mock 서버로 수행하며 `.env` 를 읽지 않습니다. 실서버 종단 테스트는 `npm start` 후 PDF 를 업로드해 확인합니다. (2025-11-12: 실서버에서 PDF 업로드 → HTTP 입력 → OCR → FTP 결과 수신 → 화면 표시까지 확인)
 - `npm run start:mock` 은 고정 샘플 결과를 돌려주는 Mock 이므로 업로드한 파일을 실제로 OCR 하지 않습니다. 실제 OCR 은 `npm start` 를 사용하세요. Mock 으로 만든 작업 기록은 실제 결과가 아니니 삭제해서 쓰세요.
 

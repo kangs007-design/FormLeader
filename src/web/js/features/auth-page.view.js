@@ -2,6 +2,7 @@
 (() => {
   const $ = (selector) => document.querySelector(selector);
   let mode = location.pathname === '/signup' ? 'signup' : location.pathname === '/setup' ? 'setup' : 'login';
+  let setupTokenInput;
   const messages = {
     INVALID_EMAIL_OR_PASSWORD: '이메일 또는 비밀번호가 올바르지 않습니다.', INVALID_PASSWORD: '비밀번호가 올바르지 않습니다.',
     PASSWORD_TOO_SHORT: '비밀번호는 12자 이상 입력해 주세요.', PASSWORD_TOO_LONG: '비밀번호는 128자 이내로 입력해 주세요.',
@@ -23,6 +24,17 @@
       if (!status.data.needsSetup && mode === 'setup') { location.replace('/login'); return; }
       const registering = mode !== 'login';
       const setup = mode === 'setup';
+      if (setup && status.data.setupTokenRequired) {
+        const group = document.createElement('div');
+        group.className = 'auth-input-group';
+        const label = document.createElement('label');
+        label.htmlFor = 'auth-setup-token';
+        label.textContent = '초기 설정 토큰';
+        setupTokenInput = document.createElement('input');
+        Object.assign(setupTokenInput, { id: 'auth-setup-token', type: 'password', required: true, autocomplete: 'off', placeholder: '운영자가 발급한 토큰을 입력하세요' });
+        group.append(label, setupTokenInput);
+        $('#account-form').prepend(group);
+      }
       $('#auth-back').hidden = !registering || setup;
       $('#auth-eyebrow').textContent = setup ? 'LET’S GET STARTED' : registering ? 'JOIN YOUR TEAM' : 'WELCOME BACK';
       $('#auth-title').textContent = setup ? '첫 관리자 계정 만들기' : registering ? '함께 시작해 보세요.' : '다시 만나 반갑습니다.';
@@ -64,7 +76,7 @@
       const body = { email: $('#auth-email').value.trim(), password: $('#auth-password').value };
       if (mode !== 'login') { body.name = $('#auth-name').value.trim(); body.department = $('#auth-department').value.trim(); }
       const url = mode === 'setup' ? '/api/account/setup' : mode === 'signup' ? '/api/auth/sign-up/email' : '/api/auth/sign-in/email';
-      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'TextSense' }, body: JSON.stringify(body) });
+      const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'TextSense', ...(setupTokenInput ? { 'X-Setup-Token': setupTokenInput.value } : {}) }, body: JSON.stringify(body) });
       const data = await response.json();
       if (!response.ok || data.ok === false) {
         const error = data.error || data;
@@ -74,6 +86,7 @@
       $('#account-form').hidden = true;
       $('#auth-success').hidden = false;
       $('#auth-name').value = ''; $('#auth-email').value = ''; $('#auth-password').value = ''; $('#auth-password-confirm').value = '';
+      if (setupTokenInput) setupTokenInput.value = '';
       if (mode === 'setup') {
         $('#auth-success-title').textContent = '관리자 설정을 마쳤습니다.';
         $('#auth-success-description').textContent = '방금 만든 관리자 계정으로 로그인해 주세요.';
