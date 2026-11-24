@@ -39,7 +39,8 @@ FR.showTab = function showTab(name) {
     .querySelectorAll(".tab")
     .forEach((t) => t.classList.toggle("active", t.id === `tab-${name}`));
   FR.$("#current-page").textContent = TAB_NAMES[name];
-  document.title = `${TAB_NAMES[name]} · TextSense`;
+  document.title = FR.brandTitle(TAB_NAMES[name]);
+  FR.mobileNav?.closeForNavigation();
   history.replaceState(null, "", `#${name}`);
   window.scrollTo({ top: 0 });
   if (TAB_LOADERS[name])
@@ -97,7 +98,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     day: "numeric",
   }).format(new Date());
   const help = FR.$("#help-dialog");
-  FR.$("#help-open").addEventListener("click", () => help.showModal());
+  const openHelp = () => {
+    FR.mobileNav?.closeForNavigation();
+    help.showModal();
+  };
+  FR.$("#help-open").addEventListener("click", openHelp);
   FR.$("#help-close").addEventListener("click", () => help.close());
   help.addEventListener("click", (e) => {
     if (e.target === help) {
@@ -124,10 +129,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       ) &&
       !help.open
     )
-      help.showModal();
+      openHelp();
   });
 
   initNavGroups();
+  FR.mobileNav = FR.initMobileNav();
   document
     .querySelectorAll("#tabs .nav-item")
     .forEach((b) =>

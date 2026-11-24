@@ -39,7 +39,7 @@
       $('#auth-eyebrow').textContent = setup ? 'LET’S GET STARTED' : registering ? 'JOIN YOUR TEAM' : 'WELCOME BACK';
       $('#auth-title').textContent = setup ? '첫 관리자 계정 만들기' : registering ? '함께 시작해 보세요.' : '다시 만나 반갑습니다.';
       $('#auth-description').textContent = setup ? '서버 PC에서 관리자 계정을 설정하고 시작하세요.' : registering ? '가입 신청 후 관리자 승인을 기다려 주세요.' : '계정으로 로그인하고 문서 작업을 이어가세요.';
-      document.title = `${setup ? '관리자 설정' : registering ? '가입 신청' : '로그인'} · TextSense`;
+      document.title = FR.brandTitle(setup ? '관리자 설정' : registering ? '가입 신청' : '로그인');
       document.querySelectorAll('.auth-register-field').forEach((field) => { field.hidden = !registering; });
       $('#auth-name').required = registering;
       $('#auth-confirm-group').hidden = !registering;

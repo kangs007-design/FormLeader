@@ -28,10 +28,10 @@ FR.usersView = (() => {
       } }, self ? '본인 계정' : user.status === 'pending' ? '가입 승인' : '저장');
       return FR.el('tr', {},
         FR.el('td', {}, FR.el('div', { class: 'user-cell' }, FR.el('span', { class: 'user-table-avatar', 'aria-hidden': 'true' }, user.name.slice(0, 1)), FR.el('div', {}, FR.el('strong', {}, user.name, self ? FR.el('span', { class: 'current-user-tag' }, '나') : ''), FR.el('small', {}, user.email)))),
-        FR.el('td', {}, user.department || '—'),
-        FR.el('td', {}, user.role === 'admin' ? '관리자' : '일반 사용자'),
-        FR.el('td', {}, FR.el('span', { class: `user-status ${user.status}` }, statuses[user.status])),
-        FR.el('td', {}, FR.shortDate(user.createdAt)),
+        FR.el('td', { 'data-label': '소속' }, user.department || '—'),
+        FR.el('td', { 'data-label': '권한' }, user.role === 'admin' ? '관리자' : '일반 사용자'),
+        FR.el('td', { 'data-label': '상태' }, FR.el('span', { class: `user-status ${user.status}` }, statuses[user.status])),
+        FR.el('td', { 'data-label': '가입일' }, FR.shortDate(user.createdAt)),
         FR.el('td', {}, FR.el('div', { class: 'user-row-actions' }, role, status, button)));
     }));
   }

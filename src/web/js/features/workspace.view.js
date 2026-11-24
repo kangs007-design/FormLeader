@@ -89,14 +89,14 @@ FR.operationsView = (() => {
   const table = (headers, rows) =>
     FR.el(
       "table",
-      { class: "grid" },
+      { class: "grid responsive-list responsive-list--details", role: "table" },
       FR.el(
         "thead",
         {},
         FR.el(
           "tr",
           {},
-          headers.map((h) => FR.el("th", {}, h)),
+          headers.map((h) => FR.el("th", { scope: "col" }, h)),
         ),
       ),
       FR.el(
@@ -106,7 +106,7 @@ FR.operationsView = (() => {
           FR.el(
             "tr",
             {},
-            row.map((v) => FR.el("td", {}, v)),
+            row.map((v, index) => FR.el("td", { "data-label": headers[index] }, v)),
           ),
         ),
       ),

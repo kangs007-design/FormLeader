@@ -14,10 +14,10 @@ FR.dashboardView = (() => {
       const st = FR.jobStatus(j);
       return FR.el('tr', {},
         FR.el('td', {}, FR.fileCell(j)),
-        FR.el('td', {}, FR.docTypeLabel(j)),
-        FR.el('td', {}, FR.shortDate(j.createdAt)),
-        FR.el('td', {}, j.result && j.result.wordCount !== undefined ? j.result.wordCount.toLocaleString('ko-KR') : '—'),
-        FR.el('td', {}, FR.el('span', { class: `pill ${st.cls}`, title: j.error || '' }, st.label)),
+        FR.el('td', { 'data-label': '문서 유형' }, FR.docTypeLabel(j)),
+        FR.el('td', { 'data-label': '등록일' }, FR.shortDate(j.createdAt)),
+        FR.el('td', { 'data-label': '단어' }, j.result && j.result.wordCount !== undefined ? j.result.wordCount.toLocaleString('ko-KR') : '—'),
+        FR.el('td', { 'data-label': '상태' }, FR.el('span', { class: `pill ${st.cls}`, title: j.error || '' }, st.label)),
         FR.el('td', {}, FR.el('div', { class: 'actions' },
           FR.el('button', { class: 'sm', disabled: j.status !== 'done', 'aria-label': `${j.fileName} 결과 보기`, onclick: () => FR.formJobView.showResult(j.id) }, '결과 보기'))));
     }));

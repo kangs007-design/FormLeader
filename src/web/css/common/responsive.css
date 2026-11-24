@@ -1,0 +1,111 @@
+/* 모바일 보정만 담당한다. 데스크톱의 기존 배치와 표는 유지한다. */
+.mobile-menu-toggle, .mobile-menu-close { display: none; }
+.table-scroll, .card, .viewer > *, .dashboard-columns > * { min-width: 0; max-width: 100%; }
+
+@media (max-width: 900px) {
+  body.mobile-nav-open { overflow: hidden; }
+  .app { flex-direction: column; }
+  .main { margin-left: 0; width: 100%; }
+  .topbar { position: sticky; top: 0; z-index: 30; min-height: 60px; height: auto; padding: 6px 14px; }
+  .breadcrumb { min-width: 0; white-space: normal; }
+  .breadcrumb strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar .user-chip { flex: none; }
+  .mobile-menu-toggle, .mobile-menu-close { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 60;
+    width: min(310px, calc(100vw - 36px)); height: 100vh; height: 100dvh;
+    padding: 18px 14px max(14px, env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0;
+    border-right: 1px solid var(--c-line); border-bottom: 0;
+    transform: translateX(-100%); visibility: hidden;
+    transition: transform .18s ease, visibility .18s;
+  }
+  .sidebar.mobile-open { transform: translateX(0); visibility: visible; }
+  .sidebar .brand { width: 100%; padding: 0 0 18px; margin: 0; gap: 8px; flex: none; }
+  .sidebar .brand-name { font-size: 23px; flex: 1; }
+  .sidebar .brand-name small { font-size: 8px; letter-spacing: 1px; }
+  .sidebar .brand-mark { width: 34px; height: 34px; }
+  .sidebar .nav { display: flex; flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; flex: 1; min-height: 0; width: 100%; gap: 2px; overflow-y: auto; }
+  .sidebar .nav-group:not([hidden]), .sidebar .nav-group-items { display: flex; flex-direction: column; gap: 2px; }
+  .sidebar .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar .nav-group-toggle { display: flex; min-height: 40px; }
+  .sidebar .nav-item { width: 100%; min-height: 44px; height: auto; padding: 10px 13px; justify-content: flex-start; flex: none; gap: 11px; }
+  .sidebar .nav-item .icon { display: block; width: 18px; height: 18px; }
+  .sidebar .nav-item span { display: inline; font-size: 13px; white-space: normal; }
+  .sidebar .nav-item .nav-count { font-size: 11px; }
+  .sidebar .nav-item .nav-plus { font-size: 20px; }
+  .sidebar .sidebar-bottom { display: block; padding-top: 10px; }
+  .sidebar .sidebar-tip { display: none; }
+  .sidebar .sidebar-help { min-height: 44px; }
+  .sidebar .sidebar-foot { display: block; }
+  .mobile-nav-backdrop {
+    position: fixed; inset: 0; z-index: 50; width: 100%; height: 100%;
+    border: 0; border-radius: 0; padding: 0; background: #17251f66; box-shadow: none;
+  }
+  .mobile-nav-backdrop:hover { background: #17251f66; border: 0; }
+}
+
+@media (max-width: 700px) {
+  .content { padding: 22px 16px 30px; }
+  .topbar .icon-btn, .topbar .profile-trigger { min-width: 44px; height: 44px !important; }
+  .today-label, .topbar-divider { display: none; }
+  .page-head { min-width: 0; }
+  .page-head > div { min-width: 0; }
+  .page-head h1, .page-head .sub, .viewer-meta { overflow-wrap: anywhere; }
+  .card-head { flex-wrap: wrap; }
+  .activity-chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+  .activity-day { min-width: 0; width: 100%; }
+  .activity-bar { width: min(22px, 100%); }
+  .table-scroll { width: 100%; }
+  /* 같은 DOM으로 표를 세로 목록으로 표시하며 열 이름과 작업 버튼을 유지한다. */
+  table.responsive-list, #tab-operations table.responsive-list { display: block; width: 100%; min-width: 0; }
+  .responsive-list thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .responsive-list tbody { display: block; width: 100%; }
+  .responsive-list tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; padding: 18px 16px; border-bottom: 1px solid var(--c-line); }
+  .responsive-list tbody tr:last-child { border-bottom: 0; }
+  .responsive-list td, .user-table.responsive-list td { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; max-width: 100%; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; font-size: 12px; }
+  .responsive-list td[data-label]::before { content: attr(data-label); font-size: 10px; font-weight: 400; color: var(--c-text-sub); }
+  .responsive-list td:first-child, .responsive-list td:last-child, .responsive-list td[colspan] { grid-column: 1 / -1; }
+  .responsive-list .file-cell { width: 100%; min-width: 0; }
+  .responsive-list .file-info { flex: 1; min-width: 0; }
+  .responsive-list .file-title { max-width: none; white-space: normal; overflow-wrap: anywhere; }
+  .responsive-list .file-meta { white-space: normal; }
+  .responsive-list td .actions { width: 100%; flex-wrap: wrap; margin-top: 3px; }
+  .responsive-list td .actions button { min-height: 40px; height: auto; padding: 8px 12px; font-size: 12px; }
+  .responsive-list td.empty { display: block; padding: 16px 0; }
+  .responsive-list .user-cell { min-width: 0; width: 100%; }
+  .responsive-list .user-cell > div { min-width: 0; }
+  .responsive-list .user-cell small { overflow-wrap: anywhere; }
+  .responsive-list .user-row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .responsive-list .user-row-actions select { max-width: 100%; min-width: 0; width: 100%; height: 40px; font-size: 16px; }
+  .responsive-list .user-row-actions button { grid-column: 1 / -1; min-height: 40px; height: auto; }
+  .responsive-list--details tbody tr { grid-template-columns: minmax(0, 1fr); padding-left: 0; padding-right: 0; }
+  .responsive-list--details td { grid-column: 1; }
+  .filter-tabs { max-width: 100%; gap: 16px; flex-wrap: wrap; }
+  .filter-tabs button { min-height: 40px; }
+  .library-toolbar { flex-wrap: wrap; gap: 10px; }
+  .library-toolbar .library-search { order: 3; flex: 1 1 100%; width: 100%; margin-bottom: 8px; }
+  .library-toolbar .filter-tabs { gap: 12px; }
+  .upload-layout { grid-template-columns: minmax(0, 1fr); }
+  .row > label { min-width: 0; max-width: 100%; flex: 1 1 180px; }
+  .row > input, .row > select, .row input[type=file] { max-width: 100%; min-width: 0; }
+  .row input[type=file] { width: 100%; }
+  .upload-opts select { min-width: 0; max-width: 100%; }
+  .viewer { grid-template-columns: minmax(0, 1fr); }
+  .viewer-head-actions { width: 100%; margin-left: 0; flex-wrap: wrap; }
+  .viewer-head-actions select { min-width: 0; max-width: 100%; flex: 1 1 150px; }
+  .sheet-stage { min-width: 0; max-width: 100%; }
+  .toolbar .tb-btn { min-width: 32px; min-height: 36px; }
+  .toolbar .seg-btn { min-height: 36px; height: auto; }
+  .tabbar { flex-wrap: wrap; overflow: visible; }
+  .tabbar-btn { min-height: 40px; height: auto; }
+  .tabbar.sub { flex-wrap: wrap; }
+  .profile-dialog { max-height: calc(100dvh - 24px); overflow: auto; padding: 20px; }
+  .profile-info { grid-template-columns: auto minmax(0, 1fr); }
+  .auth-brand { min-width: 0; }
+  .auth-brand [data-brand=productName] { min-width: 0; overflow-wrap: anywhere; }
+  .auth-form-footer { max-width: calc(100% - 32px); text-align: center; overflow-wrap: anywhere; }
+  .workspace-footer > span { overflow-wrap: anywhere; }
+  .workspace-footer > span:first-child span { display: inline; }
+  .auth-form-container input, .auth-form-container select, .password-change-form input { font-size: 16px; }
+}

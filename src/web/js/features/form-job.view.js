@@ -150,7 +150,7 @@ FR.formJobView = (() => {
             FR.el("td", {}, FR.fileCell(j)),
             FR.el(
               "td",
-              { class: "error-cell" },
+              { class: "error-cell", "data-label": "상태" },
               FR.el(
                 "span",
                 { class: `pill ${st.cls}`, title: j.error || "" },
@@ -180,8 +180,8 @@ FR.formJobView = (() => {
                 ? FR.el("span", { class: "job-error" }, j.cancellation.message)
                 : "",
             ),
-            FR.el("td", {}, FR.docTypeLabel(j)),
-            FR.el("td", {}, FR.shortDate(j.createdAt)),
+            FR.el("td", { "data-label": "문서 유형" }, FR.docTypeLabel(j)),
+            FR.el("td", { "data-label": "등록일" }, FR.shortDate(j.createdAt)),
             FR.el(
               "td",
               {},

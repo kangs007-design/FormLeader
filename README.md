@@ -1,4 +1,6 @@
-# FormReader — Pilot v1 / 제품판 전환
+# DocSquare — Pilot v1 / 제품판 전환
+
+설치별 제품명·로고·색상 변경과 모바일 표시 기준은 [브랜딩·모바일 안내](docs/branding.md)를 참고하세요.
 
 현재 파일럿은 **`v1.0.0-pilot.1`** 태그와 **`release/pilot-v1`** 브랜치로 보존했습니다. 제품판은 **`feature/product-web-was-rdb`**에서 Nginx / Tomcat / MariaDB로 단계적으로 전환합니다. [제품판 실행·폐쇄망 패키징·이전 범위](product/README.md), [Pilot v1 릴리즈 기록](docs/releases/pilot-v1.md)을 참고하세요.
 
@@ -63,14 +65,14 @@ formreader/
 
 ## 화면 디자인 / CSS 구조
 
-네이비 사이드바 + 상단 검색바 + 카드 레이아웃. CSS 는 JS/HTML 과 분리해 **공통(common)** 과 **기능별(features)** 로 관리합니다.
+사이드바 + 상단바 + 카드 레이아웃. CSS 는 JS/HTML 과 분리해 **공통(common)** 과 **기능별(features)** 로 관리합니다. 설치별 색상·글꼴·모서리는 `src/web/css/brand.css`, 제품명·제작사·로고는 `src/web/js/brand.config.js`에서 변경합니다. 기본 토큰은 `tokens.css`, 모바일 메뉴·목록 표시는 `common/responsive.css`에 분리했습니다.
 
 ```
 src/web/
 ├─ index.html
 ├─ css/
 │  ├─ common/              공통 스타일
-│  │  ├─ tokens.css        색상·반경·그림자 등 디자인 토큰 (테마를 바꿀 때는 이 파일만 수정)
+│  │  ├─ tokens.css        색상·반경·그림자 등 기본 디자인 토큰
 │  │  ├─ base.css          리셋 / 타이포그래피 / 스크롤바
 │  │  ├─ layout.css        사이드바 · 상단바 · 페이지 헤더 · 반응형
 │  │  └─ components.css    카드 · 버튼 · 입력 · 표 · 상태 배지 · 배너

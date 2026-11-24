@@ -1,0 +1,49 @@
+/* 설치별 Look & feel: 아래 설정만 수정합니다. 화면 구조와 상태 색상은 별도입니다. */
+:root {
+  --brand-accent: #176b53;
+  --brand-accent-hover: #10523f;
+  --brand-soft: #eaf1e6;
+  --brand-ink: #203e31;
+  --brand-on-ink: #d1e7ba;
+  --brand-login-bg: #193d30;
+  --brand-sidebar-bg: #fbfcfa;
+  --brand-font: Pretendard, "Malgun Gothic", system-ui, sans-serif;
+  --brand-radius: 8px;
+
+  --c-primary: var(--brand-accent);
+  --c-primary-hover: var(--brand-accent-hover);
+  --c-primary-soft: var(--brand-soft);
+  --font: var(--brand-font);
+  --radius: var(--brand-radius);
+  --radius-sm: max(0px, calc(var(--brand-radius) - 2px));
+  --radius-lg: calc(var(--brand-radius) + 4px);
+}
+
+.sidebar { background: var(--brand-sidebar-bg); }
+.brand-mark { background: var(--brand-ink); }
+.brand-mark .icon { color: var(--brand-on-ink); }
+[data-brand-logo] { width: 100%; height: 100%; object-fit: contain; }
+.brand-name { min-width: 0; overflow-wrap: anywhere; }
+.brand-mark, .auth-brand-mark { flex: none; }
+.nav-item:hover { background: var(--c-row-hover); color: var(--c-primary); }
+.nav-item.active { background: var(--brand-soft); color: var(--c-primary); }
+.nav-item.active:after, .filter-tabs button.active:after { background: var(--c-primary); }
+.filter-tabs button.active, .tabbar-btn[aria-selected=true] { color: var(--c-primary); }
+.sidebar-tip, .start-panel { background: var(--brand-soft); border-color: var(--c-line); border-radius: var(--radius-lg); }
+.sidebar-tip button, .start-copy h2 { color: var(--brand-ink); }
+.sidebar-tip > .icon, .dropzone-icon, .connection-logo { color: var(--c-primary); }
+.dropzone:hover, .dropzone.over { background: var(--brand-soft); border-color: var(--c-primary); }
+.dropzone-icon, .connection-logo, .avatar { background: var(--brand-soft); border-color: var(--c-line); }
+.avatar { color: var(--brand-ink); }
+button, input, select, textarea { border-radius: var(--radius-sm); }
+input:focus, select:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-accent) 12%, transparent); }
+.card { border-radius: var(--radius-lg); }
+.tabbar.sub .tabbar-btn[aria-selected=true], .seg-btn[aria-pressed=true], .result-actions button.primary {
+  background: var(--brand-soft); color: var(--c-primary); border-color: var(--c-line);
+}
+.result-actions button.primary:hover { background: var(--c-row-hover); }
+.auth-story { background: var(--brand-login-bg); }
+.auth-story .eyebrow, .auth-brand > .brand-dot, .auth-brand-mark, .auth-flow { color: var(--brand-on-ink); }
+.auth-story-content > p, .auth-story footer { color: color-mix(in srgb, var(--brand-on-ink) 75%, white); }
+.auth-brand-mark { border-color: color-mix(in srgb, var(--brand-on-ink) 45%, transparent); }
+.auth-switch a, .auth-login-link { color: var(--c-primary); }

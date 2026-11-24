@@ -506,7 +506,7 @@ test('서식 CRUD + 웹 화면/정적 파일 + 헬스체크', async () => {
 
     const html = await request(env.port, 'GET', '/');
     assert.equal(html.status, 200);
-    assert.match(html.text, /TextSense · Document Workspace/);
+    assert.match(html.text, /DocSquare · Document Workspace/);
     assert.equal((await request(env.port, 'GET', '/..%2f..%2fpackage.json')).status, 404);
   } finally { await env.close(); }
 });

@@ -1,7 +1,7 @@
 {
   "name": "formreader",
   "version": "1.0.0",
-  "description": "TextSense document workspace with OCR review and administrator-approved accounts",
+  "description": "DocSquare document workspace with OCR review and administrator-approved accounts",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
