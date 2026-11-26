@@ -4,6 +4,7 @@ const path = require("path");
 const sharp = require("sharp");
 const { PDFDocument } = require("pdf-lib");
 const { getImageSize } = require("./image-size.util");
+const { AppError } = require("./app.error");
 
 async function documentGeometry(file, pdfScale = 2) {
   const bytes = fs.readFileSync(file);
@@ -42,9 +43,9 @@ async function documentGeometry(file, pdfScale = 2) {
 async function imagePage(file, page = 1) {
   const n = Number(page);
   if (!Number.isInteger(n) || n < 1 || n > 10000)
-    throw new Error("페이지 번호가 올바르지 않습니다.");
+    throw AppError.badRequest("페이지 번호가 올바르지 않습니다.");
   const m = await sharp(file).metadata();
-  if (n > (m.pages || 1)) throw new Error("해당 이미지 페이지가 없습니다.");
+  if (n > (m.pages || 1)) throw AppError.badRequest("해당 이미지 페이지가 없습니다.");
   return sharp(file, { page: n - 1, pages: 1 })
     .png()
     .toBuffer();
@@ -54,7 +55,7 @@ async function copyDocumentPages(file, numbers) {
   if (path.extname(file).toLowerCase() === ".pdf") {
     const src = await PDFDocument.load(fs.readFileSync(file));
     if (numbers.some((n) => n < 1 || n > src.getPageCount()))
-      throw new Error("원본에 없는 페이지입니다.");
+      throw AppError.badRequest("원본에 없는 페이지입니다.");
     const out = await PDFDocument.create();
     (
       await out.copyPages(

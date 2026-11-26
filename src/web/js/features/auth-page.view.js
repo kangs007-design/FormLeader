@@ -48,6 +48,7 @@
       $('#auth-password').minLength = registering ? 12 : 1;
       $('#auth-password-hint').hidden = !registering;
       $('#auth-signup-link').hidden = registering;
+      $('#auth-forgot').hidden = registering;
       $('#auth-submit').replaceChildren(document.createTextNode(setup ? '관리자 계정 만들기' : registering ? '가입 신청하기' : '로그인'), Object.assign(document.createElement('span'), { textContent: '→' }));
       $('#auth-note').textContent = setup ? '이 계정으로 가입 승인과 사용자 권한을 관리합니다. 공용 비밀번호 대신 본인의 비밀번호를 설정해 주세요.' : '승인된 구성원만 문서를 열고 처리할 수 있습니다.';
       $('#auth-loading').hidden = true;

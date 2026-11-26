@@ -111,6 +111,64 @@ FR.operationsView = (() => {
         ),
       ),
     );
+  const emptyNote = (text) => FR.el("p", { class: "op-empty" }, text);
+  const badge = (ok, text) => FR.el("span", { class: `pill ${ok === null ? "info" : ok ? "done" : "failed"}` }, text);
+  const statusRow = (name, state, detail) =>
+    FR.el("li", { class: "op-status-row" },
+      FR.el("strong", {}, name), state, FR.el("span", { class: "op-status-detail" }, detail));
+
+  function renderServices(m) {
+    const gateway = m.services.gateway;
+    const remote = m.remote;
+    FR.$("#op-checked-at").textContent = `수집 ${FR.fmtTime(m.at)}`;
+    FR.$("#op-services").replaceChildren(
+      FR.el("ul", { class: "op-status-list" },
+        statusRow("앱 서버", badge(true, "실행 중"), m.local.host),
+        statusRow("OCR 게이트웨이", badge(gateway.reachable, gateway.reachable ? "연결 가능" : "연결 실패"),
+          gateway.reachable ? "TCP 연결 확인" : `오류 ${gateway.error}`),
+        statusRow("원격 서버 지표",
+          !remote.configured ? badge(null, "미설정") : badge(!remote.error, remote.error ? "조회 실패" : "수신"),
+          !remote.configured ? "업무 서버 연동에서 지표 URL을 등록하면 표시됩니다."
+            : remote.error ? "지표 서버에 연결할 수 없습니다. 주소와 서버 상태를 확인하세요." : "아래 수신값 참고"),
+      ),
+      remote.configured && remote.metrics ? FR.el("pre", { class: "op-metrics-raw" }, JSON.stringify(remote.metrics, null, 2)) : "",
+      FR.el("p", { class: "hint" }, "자원 사용량은 앱 서버 기준입니다. TCP 연결 여부는 OCR 처리 성공 여부와 별도로 확인합니다."),
+    );
+  }
+
+  function renderFailures(m) {
+    const names = new Map(m.events.map((e) => [e.jobId, e.fileName]));
+    const deliveryLabel = { sent: "전송 완료", failed: "전송 실패" };
+    FR.$("#op-failures-count").textContent = m.failures.length + m.deliveries.length;
+    const parts = [];
+    if (m.failures.length)
+      parts.push(
+        FR.el("h4", {}, "처리 실패"),
+        table(["문서", "오류", "발생 시각", "분석"], m.failures.map((f) => [
+          f.fileName,
+          [f.code, f.error].filter(Boolean).join(" · "),
+          FR.fmtTime(f.at),
+          FR.el("button", { class: "sm", "aria-label": `${f.fileName} 원인 분석`, onclick: () => FR.showDiagnostics(f.id) }, "원인 분석"),
+        ])),
+      );
+    if (m.deliveries.length)
+      parts.push(
+        FR.el("h4", {}, "업무 서버 전송"),
+        table(["문서", "상태", "시도", "조치"], m.deliveries.map((d) => [
+          names.get(d.jobId) || d.jobId,
+          FR.el("div", {}, badge(d.status === "sent" ? true : d.status === "failed" ? false : null, deliveryLabel[d.status] || "전송 중"),
+            d.error ? FR.el("small", { class: "op-error" }, d.error) : ""),
+          `${d.attempts}회`,
+          d.status === "failed"
+            ? FR.el("button", { class: "sm", onclick: async () => {
+                try { await FR.api("POST", `/api/jobs/${d.jobId}/deliver`, {}); await refresh(); }
+                catch (e) { FR.setMsg(FR.$("#op-msg"), e.message, false); }
+              } }, "다시 전송")
+            : "—",
+        ])),
+      );
+    FR.$("#op-failures").replaceChildren(...(parts.length ? parts : [emptyNote("실패하거나 전송한 내역이 없습니다.")]));
+  }
   async function refresh() {
     clearTimeout(timer);
     try {
@@ -133,77 +191,21 @@ FR.operationsView = (() => {
           ),
         ),
       );
-      FR.$("#op-services").replaceChildren(
-        FR.el(
-          "p",
-          {},
-          `앱 서버 ${m.local.host}: 실행 중 · OCR 게이트웨이 TCP: ${m.services.gateway.reachable ? "연결 가능" : `연결 실패 (${m.services.gateway.error})`} · 수집 ${FR.fmtTime(m.at)}`,
-        ),
-        FR.el(
-          "p",
-          { class: "hint" },
-          "자원 사용량은 앱 서버 기준입니다. 게이트웨이 TCP 연결 여부는 OCR 처리 성공 여부와 별도로 확인합니다.",
-        ),
-        m.remote.configured
-          ? FR.el(
-              "pre",
-              {},
-              JSON.stringify(
-                m.remote.metrics || { error: m.remote.error },
-                null,
-                2,
-              ),
-            )
-          : FR.el(
-              "p",
-              { class: "hint" },
-              "원격 OCR 서버 지표 URL이 설정되지 않았습니다.",
-            ),
-      );
-      FR.$("#op-failures").replaceChildren(
-        ...m.failures.map((f) =>
-          FR.el(
-            "p",
-            {},
-            FR.el(
-              "button",
-              { class: "sm", onclick: () => FR.showDiagnostics(f.id) },
-              f.fileName,
-            ),
-            ` ${f.code || ""} ${f.error}`,
-          ),
-        ),
-        ...m.deliveries.map((d) =>
-          FR.el(
-            "p",
-            {},
-            `${d.jobId}: ${d.status === "sent" ? "전송 완료" : d.status === "failed" ? "전송 실패" : "전송 중"} · ${d.attempts}회 ${d.error || ""}`,
-            d.status === "failed"
-              ? FR.el(
-                  "button",
-                  {
-                    class: "sm",
-                    onclick: async () => {
-                      await FR.api("POST", `/api/jobs/${d.jobId}/deliver`, {});
-                      await refresh();
-                    },
-                  },
-                  "다시 전송",
-                )
-              : "",
-          ),
-        ),
-      );
+      renderServices(m);
+      renderFailures(m);
+      FR.$("#op-events-count").textContent = m.events.length;
       FR.$("#op-events").replaceChildren(
-        table(
-          ["일시", "문서", "이벤트", "사용자"],
-          m.events.map((e) => [
-            FR.fmtTime(e.at),
-            e.fileName,
-            FR.eventLabel(e.type),
-            e.actorName || "시스템",
-          ]),
-        ),
+        m.events.length
+          ? table(
+              ["일시", "문서", "이벤트", "사용자"],
+              m.events.map((e) => [
+                FR.fmtTime(e.at),
+                e.fileName,
+                FR.eventLabel(e.type),
+                e.actorName || "시스템",
+              ]),
+            )
+          : emptyNote("아직 작업 이력이 없습니다."),
       );
     } catch (e) {
       FR.setMsg(FR.$("#op-msg"), e.message, false);
@@ -318,7 +320,9 @@ FR.compareView = (() => {
       );
     }
     comparisons = await FR.api("GET", "/api/comparisons");
+    FR.$("#cp-history").disabled = FR.$("#cp-open").disabled = !comparisons.length;
     FR.$("#cp-history").replaceChildren(
+      ...(comparisons.length ? [] : [FR.el("option", { value: "" }, "이전 비교 결과 없음")]),
       ...comparisons
         .slice()
         .reverse()

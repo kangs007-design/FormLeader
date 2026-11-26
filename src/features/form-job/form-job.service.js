@@ -1,5 +1,8 @@
 "use strict";
-const { signInputFile } = require("../../common/file-access.util");
+const {
+  signInputFile,
+  removeManagedFile,
+} = require("../../common/file-access.util");
 /**
  * 개별기능[form-job]: Form 작업 (파일 업로드 → TextSense 작업 요청 → 상태 폴링 → 결과 JSON 수신 → 서식 적용)
  * 작업 상태: pending → processing → done | failed
@@ -39,6 +42,10 @@ function matchesFileType(ext, bytes) {
 }
 const MAX_TRANSIENT_STATUS_ERRORS = 5;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** 문서 소유자: 저장된 ownerId, 이전 데이터는 최초 이벤트의 작업자 */
+const ownerOf = (job) => job.ownerId || job.events?.[0]?.actor || null;
+/** 관리자는 전체, 일반 사용자는 본인 문서만 */
+const canAccess = (user, job) => user?.role === "admin" || ownerOf(job) === user?.id;
 
 class FormJobService {
   constructor({ config, client, ocrResultService, formTemplateService }) {
@@ -55,9 +62,9 @@ class FormJobService {
   }
 
   /** 목록용: 큰 값(추출 Key-Value)은 빼고 화면 표시에 필요한 요약(result)만 포함 */
-  list() {
+  list(user) {
     return this.repo.list().then((l) =>
-      l.map(({ ocrResult, ...summary }) => ({
+      (user ? l.filter((job) => canAccess(user, job)) : l).map(({ ocrResult, ...summary }) => ({
         ...summary,
         result: ocrResult
           ? {
@@ -74,13 +81,13 @@ class FormJobService {
   }
 
   /** 문서 본문(OCR 텍스트)에 검색어가 들어 있는 작업 id 목록. 본문은 파일 수정시각 기준으로 캐시한다. */
-  async searchContent(query) {
+  async searchContent(query, user) {
     const q = String(query || "").trim().toLowerCase();
     if (q.length < 2) return [];
     this.textCache = this.textCache || new Map();
     const hits = [];
     for (const job of await this.repo.list()) {
-      if (job.status !== "done") continue;
+      if (job.status !== "done" || (user && !canAccess(user, job))) continue;
       const file = path.join(this.config.storage.outputDir, `${job.id}.json`);
       let mtime;
       try {
@@ -107,8 +114,20 @@ class FormJobService {
     return hits;
   }
 
+  /** 같은 문서의 저장을 차례로 처리해, 동시에 들어온 저장도 충돌을 감지한다 */
+  saveReview(id, input = {}) {
+    this.reviewQueue = this.reviewQueue || new Map();
+    const previous = this.reviewQueue.get(id) || Promise.resolve();
+    const run = previous.catch(() => {}).then(() => this._saveReview(id, input));
+    const tail = run.catch(() => {}).finally(() => {
+      if (this.reviewQueue.get(id) === tail) this.reviewQueue.delete(id);
+    });
+    this.reviewQueue.set(id, tail);
+    return run;
+  }
+
   /** Keep human corrections separate from the engine output. */
-  async saveReview(id, input = {}) {
+  async _saveReview(id, input) {
     if (!input || typeof input !== "object" || Array.isArray(input))
       throw AppError.badRequest("검수 요청의 형식이 올바르지 않습니다.");
     const { values = {}, groups = {}, text, confirmed = false } = input;
@@ -124,6 +143,16 @@ class FormJobService {
       (typeof text !== "string" || text.length > 5000000)
     )
       throw AppError.badRequest("본문은 500만 자 이내의 문자열이어야 합니다.");
+    // 화면이 알고 있는 마지막 저장 시각과 다르면 그 사이 다른 사람이 저장한 것이다
+    if (
+      input.baseSavedAt !== undefined &&
+      (job.review?.savedAt || null) !== input.baseSavedAt
+    )
+      throw new AppError(
+        409,
+        "CONFLICT",
+        "다른 사용자가 먼저 저장했습니다. 문서를 다시 연 뒤 수정해 주세요.",
+      );
     const original = job.ocrResult.values || {};
     const names = Object.keys(original);
     if (
@@ -257,11 +286,24 @@ class FormJobService {
     if (["pending", "processing"].includes(job.status))
       throw AppError.badRequest("진행 중인 작업은 취소 후 삭제하세요.");
     await this.repo.remove(id);
+    // 원본·결과 파일도 함께 파기하고, 다른 작업에 남은 참조를 정리한다
+    removeManagedFile(this.config.storage.inputDir, job.storedName);
+    removeManagedFile(this.config.storage.outputDir, `${id}.json`);
+    removeManagedFile(this.config.storage.outputDir, `${id}.classification.json`);
+    this.textCache?.delete(id);
+    for (const other of await this.repo.list()) {
+      const patch = {};
+      if (other.children?.includes(id))
+        patch.children = other.children.filter((child) => child !== id);
+      if (other.parentId === id) patch.parentId = null;
+      if (Object.keys(patch).length) await this.repo.update(other.id, patch);
+    }
+    if (this.onRemove) await this.onRemove(id);
     return { id };
   }
 
   /** Reuse the retained source while preserving the failed job's history. */
-  async retry(id) {
+  async retry(id, actor) {
     const job = await this.get(id);
     if (job.status !== "failed")
       throw AppError.badRequest("실패한 문서만 다시 처리할 수 있습니다.");
@@ -276,6 +318,8 @@ class FormJobService {
       templateId: job.templateId || undefined,
       parentId: id,
       relation: "retry",
+      actor,
+      ownerId: ownerOf(job),
     });
   }
 
@@ -289,6 +333,7 @@ class FormJobService {
     parentId = null,
     relation = null,
     actor = null,
+    ownerId = actor,
   }) {
     if (this.resetting)
       throw AppError.badRequest("초기화 중입니다. 잠시 후 다시 시도하세요.");
@@ -338,6 +383,7 @@ class FormJobService {
     const now = new Date().toISOString();
     const job = await this.repo.insert({
       id,
+      ownerId,
       fileName: safeName,
       storedName,
       templateId: templateId || null,
@@ -978,6 +1024,7 @@ class FormJobService {
       children.push(
         await this.repo.insert({
           id: childId,
+          ownerId: ownerOf(job),
           fileName: `${job.fileName.replace(/\.[^.]+$/, "")}_${numbers.join("-")}.pdf`,
           storedName,
           status: "done",
@@ -1014,4 +1061,4 @@ class FormJobService {
   }
 }
 
-module.exports = { FormJobService, matchesFileType };
+module.exports = { FormJobService, matchesFileType, canAccess, ownerOf };

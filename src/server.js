@@ -33,7 +33,10 @@ const {
 const {
   OcrResultService,
 } = require("./features/ocr-result/ocr-result.service");
-const { FormJobService } = require("./features/form-job/form-job.service");
+const {
+  FormJobService,
+  canAccess,
+} = require("./features/form-job/form-job.service");
 const {
   registerFormJobRoutes,
 } = require("./features/form-job/form-job.controller");
@@ -92,6 +95,7 @@ function createApp(config = createConfig()) {
     documentExportService,
     authService,
   });
+  formJobService.onRemove = (id) => workspaceService.removeComparisonsOf(id);
   formJobService.onComplete = async (id) => {
     const s = await workspaceService.settings.get("integration");
     if (s?.autoSend) await workspaceService.deliver(id, "automatic");
@@ -156,7 +160,17 @@ function createApp(config = createConfig()) {
             url.pathname.startsWith("/api/samples") ||
             url.pathname.endsWith("/deliver") ||
             (url.pathname.startsWith("/api/forms") && req.method !== "GET");
-          req.user = await authService.requireUser(req, adminOnly);
+          // 임시 비밀번호 상태에서는 내 정보 확인만 허용한다 (비밀번호 변경은 /api/auth)
+          req.user = await authService.requireUser(req, adminOnly, {
+            allowPasswordChange: url.pathname === "/api/account/me",
+          });
+          // 문서 단위 API 는 한 곳에서 접근 권한을 확인한다 (권한이 없으면 존재 여부도 알리지 않는다)
+          const target = /^\/api\/jobs\/([^/]+)(?:\/|$)/.exec(url.pathname);
+          if (target && target[1] !== "search") {
+            const job = await formJobService.get(decodeURIComponent(target[1]));
+            if (!canAccess(req.user, job))
+              throw AppError.notFound("작업을 찾을 수 없습니다.");
+          }
         }
         // 업로드한 원본 파일(문서 확인 화면의 미리보기용). 작업 id 로만 접근하며 경로를 직접 받지 않는다.
         const fileRoute =

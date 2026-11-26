@@ -2,6 +2,7 @@
 /** 공통: HTTP 요청/응답 유틸 (JSON 응답, 본문 파싱, 정적 파일) */
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { AppError } = require('./app.error');
 
 const MIME = {
@@ -50,15 +51,44 @@ function readJsonBody(req, limitBytes = 60 * 1024 * 1024) {
   });
 }
 
-/** webDir 하위 정적 파일 서빙. 처리했으면 true */
+/** 압축 효과가 있는 텍스트 계열 확장자 */
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.wasm']);
+const gzipCache = new Map(); // 파일 경로 → { etag, body }
+
+/**
+ * webDir 하위 정적 파일 서빙. 처리했으면 true
+ * ETag 로 재검증(no-cache)하므로 배포 후에도 옛 파일이 남지 않고, 바뀌지 않은 파일은 304 로 본문을 보내지 않는다.
+ */
 function serveStatic(webDir, urlPath, res) {
   const rel = urlPath === '/' ? '/index.html' : urlPath;
   let decoded;
   try { decoded = decodeURIComponent(rel); } catch (_) { return false; }
   const file = path.normalize(path.join(webDir, decoded));
   if (!file.startsWith(webDir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return false;
-  const data = fs.readFileSync(file);
-  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Content-Length': data.length });
+  const ext = path.extname(file);
+  const stat = fs.statSync(file);
+  const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
+  const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream', ETag: etag };
+  if (!res.getHeader('Cache-Control')) headers['Cache-Control'] = 'no-cache';
+  const request = res.req || { headers: {} };
+  if (request.headers['if-none-match'] === etag && !res.getHeader('Cache-Control')?.includes('no-store')) {
+    res.writeHead(304, headers);
+    res.end();
+    return true;
+  }
+  let data;
+  if (COMPRESSIBLE.has(ext) && /\bgzip\b/.test(request.headers['accept-encoding'] || '')) {
+    let cached = gzipCache.get(file);
+    if (!cached || cached.etag !== etag) {
+      cached = { etag, body: zlib.gzipSync(fs.readFileSync(file)) };
+      gzipCache.set(file, cached);
+    }
+    data = cached.body;
+    headers['Content-Encoding'] = 'gzip';
+    headers.Vary = 'Accept-Encoding';
+  } else data = fs.readFileSync(file);
+  headers['Content-Length'] = data.length;
+  res.writeHead(200, headers);
   res.end(data);
   return true;
 }

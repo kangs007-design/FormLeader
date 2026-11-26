@@ -10,6 +10,7 @@ const { createId, toSafeFileName } = require("../../common/id.util");
 const { documentGeometry } = require("../../common/document.util");
 const { AppError } = require("../../common/app.error");
 const { validateOptions } = require("../ocr-connect/engine-policy.util");
+const { removeManagedFile } = require("../../common/file-access.util");
 
 const ALLOWED = [".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"];
 function validUrl(value) {
@@ -545,6 +546,12 @@ class WorkspaceService {
       await new Promise((r) => setTimeout(r, attempt * 500));
     }
   }
+  /** 삭제한 문서의 본문이 비교 결과에 남지 않게 지운다 */
+  async removeComparisonsOf(jobId) {
+    for (const c of await this.comparisons.list())
+      if (c.leftId === jobId || c.rightId === jobId)
+        await this.comparisons.remove(c.id);
+  }
   async reset(input, actor) {
     if (input.confirm !== "문서 초기화")
       throw AppError.badRequest("확인 문구 “문서 초기화”를 정확히 입력하세요.");
@@ -586,16 +593,7 @@ class WorkspaceService {
     }
   }
   unlinkManaged(dir, name) {
-    if (!/^[A-Za-z0-9_.-]+$/.test(name || "") || name.includes("..")) return;
-    const base = path.resolve(dir),
-      target = path.resolve(base, name);
-    if (!target.startsWith(base + path.sep))
-      throw new Error("관리 저장소 밖의 파일입니다.");
-    try {
-      fs.unlinkSync(target);
-    } catch (e) {
-      if (e.code !== "ENOENT") throw e;
-    }
+    removeManagedFile(dir, name);
   }
   async close() {
     await Promise.all([...this.outgoing]);

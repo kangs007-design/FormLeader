@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "reset:password": "node scripts/reset-password.script.js",
     "start:mock": "node scripts/start-mock.script.js",
     "test": "node scripts/test.script.js",
     "test:unit": "node scripts/test.script.js --unit",

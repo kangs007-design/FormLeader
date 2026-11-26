@@ -3,6 +3,7 @@ const path = require("path");
 const { serveFile } = require("../../common/http-response.util");
 const { imagePage } = require("../../common/document.util");
 const { AppError } = require("../../common/app.error");
+const { canAccess } = require("../form-job/form-job.service");
 
 function registerWorkspaceRoutes(
   router,
@@ -48,18 +49,25 @@ function registerWorkspaceRoutes(
   router.add("POST", "/api/samples/preview", ({ body, req }) =>
     workspace.preview(body, req.user.id),
   );
-  router.add("POST", "/api/comparisons", ({ body, req }) =>
-    workspace.compare(body, req.user.id),
-  );
-  router.add("GET", "/api/comparisons", async () =>
-    (await workspace.comparisons.list()).map(({ differences, ...c }) => ({
+  /** 비교 결과는 만든 사람과 관리자만 본다 */
+  const mine = (user) => (c) => user.role === "admin" || c.actor === user.id;
+  router.add("POST", "/api/comparisons", async ({ body, req }) => {
+    for (const id of [body.leftId, body.rightId]) {
+      if (id && !canAccess(req.user, await jobs.get(id)))
+        throw AppError.notFound("문서를 찾을 수 없습니다.");
+    }
+    return workspace.compare(body, req.user.id);
+  });
+  router.add("GET", "/api/comparisons", async ({ req }) =>
+    (await workspace.comparisons.list()).filter(mine(req.user)).map(({ differences, ...c }) => ({
       ...c,
       differenceCount: differences.length,
     })),
   );
-  router.add("GET", "/api/comparisons/:id", async ({ params }) => {
+  router.add("GET", "/api/comparisons/:id", async ({ params, req }) => {
     const c = await workspace.comparisons.get(params.id);
-    if (!c) throw AppError.notFound("비교 결과가 없습니다.");
+    if (!c || !mine(req.user)(c))
+      throw AppError.notFound("비교 결과가 없습니다.");
     return c;
   });
   router.add("GET", "/api/jobs/:id/export", async ({ params, query, res }) => {

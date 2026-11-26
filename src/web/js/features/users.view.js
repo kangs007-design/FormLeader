@@ -26,14 +26,49 @@ FR.usersView = (() => {
           FR.setMsg(FR.$('#users-message'), `${user.name} 사용자의 권한과 상태를 저장했습니다.`);
         } catch (e) { FR.setMsg(FR.$('#users-message'), e.message, false); button.disabled = false; }
       } }, self ? '본인 계정' : user.status === 'pending' ? '가입 승인' : '저장');
+      const reset = !self && FR.features?.credentialReset
+        ? FR.el('button', { class: 'sm', 'aria-label': `${user.name} 비밀번호 초기화`, onclick: () => resetPassword(user, reset) }, '비밀번호 초기화')
+        : '';
       return FR.el('tr', {},
         FR.el('td', {}, FR.el('div', { class: 'user-cell' }, FR.el('span', { class: 'user-table-avatar', 'aria-hidden': 'true' }, user.name.slice(0, 1)), FR.el('div', {}, FR.el('strong', {}, user.name, self ? FR.el('span', { class: 'current-user-tag' }, '나') : ''), FR.el('small', {}, user.email)))),
         FR.el('td', { 'data-label': '소속' }, user.department || '—'),
         FR.el('td', { 'data-label': '권한' }, user.role === 'admin' ? '관리자' : '일반 사용자'),
         FR.el('td', { 'data-label': '상태' }, FR.el('span', { class: `user-status ${user.status}` }, statuses[user.status])),
         FR.el('td', { 'data-label': '가입일' }, FR.shortDate(user.createdAt)),
-        FR.el('td', {}, FR.el('div', { class: 'user-row-actions' }, role, status, button)));
+        FR.el('td', {}, FR.el('div', { class: 'user-row-actions' }, role, status, button, reset)));
     }));
+  }
+
+  /** 임시 비밀번호는 서버가 다시 알려주지 않으므로 닫기 전까지 화면에 보여 준다 */
+  function showTemporaryPassword(result) {
+    FR.$('#temp-password-dialog')?.remove();
+    const message = FR.el('span', { class: 'msg', role: 'status' });
+    const field = FR.el('input', { id: 'temp-password', class: 'temp-password', readonly: true, value: result.temporaryPassword, 'aria-label': '임시 비밀번호', onfocus: (e) => e.target.select() });
+    const dialog = FR.el('dialog', { id: 'temp-password-dialog', class: 'profile-dialog' },
+      FR.el('div', { class: 'dialog-head' }, FR.el('h2', {}, '임시 비밀번호'),
+        FR.el('button', { class: 'icon-btn', 'aria-label': '임시 비밀번호 닫기', onclick: () => dialog.close() }, '✕')),
+      FR.el('p', {}, `${result.name} (${result.email}) 님에게 전달해 주세요.`),
+      field,
+      FR.el('p', { class: 'hint' }, '이 창을 닫으면 다시 볼 수 없습니다. 로그인하면 새 비밀번호로 바꿔야 하며, 기존 로그인은 모두 종료되었습니다.'),
+      FR.el('div', { class: 'dialog-actions' },
+        FR.el('button', { class: 'primary', onclick: async () => {
+          try { await navigator.clipboard.writeText(result.temporaryPassword); FR.setMsg(message, '복사했습니다.'); }
+          catch (_) { field.select(); FR.setMsg(message, '복사할 수 없습니다. 선택된 값을 직접 복사하세요.', false); }
+        } }, '복사'),
+        message));
+    dialog.addEventListener('close', () => dialog.remove());
+    document.body.append(dialog);
+    dialog.showModal();
+  }
+
+  async function resetPassword(user, button) {
+    if (!confirm(`${user.name} 님의 비밀번호를 초기화할까요?\n기존 비밀번호와 로그인은 바로 사용할 수 없게 됩니다.`)) return;
+    button.disabled = true;
+    try {
+      showTemporaryPassword(await FR.api('POST', `/api/users/${encodeURIComponent(user.id)}/reset-password`, {}));
+      FR.setMsg(FR.$('#users-message'), `${user.name} 사용자의 비밀번호를 초기화했습니다.`);
+    } catch (e) { FR.setMsg(FR.$('#users-message'), e.message, false); }
+    finally { button.disabled = false; }
   }
 
   async function load() {

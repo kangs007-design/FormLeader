@@ -793,8 +793,8 @@ FR.formJobView = (() => {
           `결과를 불러올 수 없습니다: ${e.message}`,
         ),
       );
+      FR.showTab("ocr-result");
     }
-    FR.showTab("ocr-result");
   }
 
   /** 처리 중인 작업이 있으면 2초마다 현황 갱신 */
@@ -862,6 +862,7 @@ FR.formJobView = (() => {
         groups,
         ...(text ? { text: text.value } : {}),
         confirmed: FR.$("#or-confirm").checked,
+        baseSavedAt: currentJob.review?.savedAt || null,
       });
       dirty = false;
       renderFields(currentJob, viewer.view);

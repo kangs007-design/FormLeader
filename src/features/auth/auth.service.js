@@ -7,6 +7,9 @@ const Database = require('better-sqlite3');
 const { AppError } = require('../../common/app.error');
 
 const PUBLIC_COLUMNS = 'id, name, email, department, role, status, createdAt, updatedAt';
+/** 임시 비밀번호: 헷갈리는 글자(0/O, 1/l/I)를 뺀 14자 */
+const TEMP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+const createTempPassword = () => Array.from({ length: 14 }, () => TEMP_ALPHABET[crypto.randomInt(TEMP_ALPHABET.length)]).join('');
 const isLoopback = (address) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(address);
 
 class AuthService {
@@ -24,6 +27,7 @@ class AuthService {
         import('better-auth'), import('better-auth/api'), import('better-auth/db/migration'), import('better-auth/node'),
       ]);
       this.fromNodeHeaders = node.fromNodeHeaders;
+      this.hashPassword = (await import('better-auth/crypto')).hashPassword;
       fs.mkdirSync(this.config.dataDir, { recursive: true });
       const secretPath = path.join(this.config.dataDir, '.auth-secret');
       let secret = this.config.auth.secret;
@@ -53,6 +57,9 @@ class AuthService {
         rateLimit: { enabled: true, storage: 'database', window: 60, max: 30, customRules: { '/sign-in/email': { window: 60, max: 8 }, '/sign-up/email': { window: 60, max: 5 } } },
         advanced: { cookiePrefix: 'textsense', useSecureCookies: new URL(baseURL).protocol === 'https:' },
         hooks: { before: createAuthMiddleware(async (ctx) => {
+          if (ctx.path === '/change-password' && ctx.body?.newPassword === ctx.body?.currentPassword) {
+            throw new APIError('BAD_REQUEST', { code: 'SAME_PASSWORD', message: '새 비밀번호는 현재 비밀번호와 달라야 합니다.' });
+          }
           if (ctx.path === '/sign-up/email') {
             if (!this.hasAdmin() && ctx.request) throw new APIError('FORBIDDEN', { message: '먼저 서버 PC에서 최초 관리자 계정을 설정해 주세요.' });
             if (typeof ctx.body?.name !== 'string' || !ctx.body.name.trim() || ctx.body.name.length > 80) throw new APIError('BAD_REQUEST', { message: '이름은 1~80자로 입력해 주세요.' });
@@ -70,6 +77,8 @@ class AuthService {
       });
       const { runMigrations } = await getMigrations(this.auth.options);
       await runMigrations();
+      // 비밀번호 초기화 기록. 현재 비밀번호가 tempHash 와 같으면 아직 바꾸지 않은 상태다.
+      this.db.exec('CREATE TABLE IF NOT EXISTS password_reset (id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT NOT NULL, actorId TEXT NOT NULL, tempHash TEXT NOT NULL, createdAt TEXT NOT NULL)');
       this.nodeHandler = node.toNodeHandler(this.auth);
       this.resolveReady();
     } catch (e) { this.rejectReady(e); if (this.db?.open) this.db.close(); throw e; }
@@ -91,9 +100,10 @@ class AuthService {
     return user && user.status === 'active' ? { user, session: session.session } : null;
   }
 
-  async requireUser(req, adminOnly = false) {
+  async requireUser(req, adminOnly = false, { allowPasswordChange = false } = {}) {
     const session = await this.session(req);
     if (!session) throw new AppError(401, 'UNAUTHORIZED', '로그인이 필요합니다.');
+    if (!allowPasswordChange && this.mustChangePassword(session.user.id)) throw new AppError(403, 'PASSWORD_CHANGE_REQUIRED', '임시 비밀번호를 새 비밀번호로 바꾼 뒤 이용해 주세요.');
     if (adminOnly && session.user.role !== 'admin') throw new AppError(403, 'FORBIDDEN', '관리자만 이용할 수 있습니다.');
     return session.user;
   }
@@ -132,6 +142,29 @@ class AuthService {
       return this.publicUser(id);
     })();
   }
+
+  mustChangePassword(userId) {
+    return !!this.db.prepare("SELECT 1 FROM password_reset r JOIN account a ON a.userId = r.userId AND a.providerId = 'credential' WHERE r.userId = ? AND a.password = r.tempHash").get(userId);
+  }
+
+  /** 임시 비밀번호로 바꾸고 그 사용자의 로그인을 모두 끊는다. 임시 비밀번호는 반환값으로 한 번만 알 수 있다. */
+  async resetPassword(actorId, userId) {
+    if (actorId === userId) throw AppError.badRequest('본인 비밀번호는 "내 계정"에서 변경해 주세요.');
+    const target = this.publicUser(userId);
+    if (!target) throw AppError.notFound('사용자를 찾을 수 없습니다.');
+    const temporaryPassword = createTempPassword();
+    const hash = await this.hashPassword(temporaryPassword);
+    this.db.transaction(() => {
+      const now = new Date().toISOString();
+      const changed = this.db.prepare("UPDATE account SET password = ?, updatedAt = ? WHERE userId = ? AND providerId = 'credential'").run(hash, now, userId).changes;
+      if (!changed) throw AppError.badRequest('비밀번호 로그인 계정이 아닙니다.');
+      this.db.prepare('DELETE FROM session WHERE userId = ?').run(userId);
+      this.db.prepare('INSERT INTO password_reset (userId, actorId, tempHash, createdAt) VALUES (?, ?, ?, ?)').run(userId, actorId, hash, now);
+    })();
+    return { id: userId, email: target.email, name: target.name, temporaryPassword };
+  }
+
+  findByEmail(email) { return this.db.prepare(`SELECT ${PUBLIC_COLUMNS} FROM user WHERE lower(email) = lower(?)`).get(String(email || '')) || null; }
 
   close() { if (this.db?.open) this.db.close(); }
 }
