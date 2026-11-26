@@ -97,10 +97,12 @@ class FormJobService {
         } catch (_) {
           /* 읽을 수 없는 결과는 검색에서 제외 */
         }
-        entry = { mtime, text: (text + "\n" + (job.review?.text || "")).toLowerCase() };
+        entry = { mtime, text: text.toLowerCase() };
         this.textCache.set(job.id, entry);
       }
-      if (entry.text.includes(q)) hits.push(job.id);
+      // 검수로 수정한 본문은 캐시하지 않고 매번 확인한다 (수정 즉시 검색에 반영)
+      if (entry.text.includes(q) || (job.review?.text || "").toLowerCase().includes(q))
+        hits.push(job.id);
     }
     return hits;
   }

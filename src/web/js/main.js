@@ -74,8 +74,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         button.title = '제품판 준비 중';
       }
     });
-    FR.$('#global-search').disabled = true;
-    FR.$('#global-search').placeholder = '문서 기능 준비 중';
+    FR.$('#js-search').disabled = true;
+    FR.$('#js-search').placeholder = '문서 기능 준비 중';
     const title = document.createElement('h1');
     title.textContent = '제품판 준비 중';
     const description = document.createElement('p');
