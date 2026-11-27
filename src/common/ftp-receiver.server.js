@@ -151,13 +151,20 @@ class FtpReceiver {
       const ds = await getDataSocket();
       closePasv();
       if (!ds) return send(425, 'Data connection failed');
+      // 큰 결과는 전송이 오래 걸린다: 전송 중에는 제어 연결이 아니라 데이터 연결의 유휴 시간을 본다
+      sock.setTimeout(0);
+      ds.setTimeout(this.idleMs, () => ds.destroy());
 
       const target = path.join(this.dir, name);
       const tmp = `${target}.${crypto.randomBytes(4).toString('hex')}.part`;
       const out = fs.createWriteStream(tmp);
       let bytes = 0; let failed = false;
       const fail = (code, msg) => { if (failed) return; failed = true; ds.destroy(); out.destroy(); fs.rm(tmp, { force: true }, () => {}); send(code, msg); };
-      ds.on('data', (chunk) => { bytes += chunk.length; if (bytes > this.maxBytes) return fail(552, 'Exceeded size limit'); out.write(chunk); });
+      ds.on('data', (chunk) => {
+        bytes += chunk.length;
+        if (bytes > this.maxBytes) return fail(552, 'Exceeded size limit');
+        if (!out.write(chunk)) { ds.pause(); out.once('drain', () => ds.resume()); } // 디스크보다 빨리 받으면 잠시 멈춘다
+      });
       ds.on('error', () => fail(426, 'Connection closed'));
       let ended = false;
       const flushed = new Promise((resolve) => out.once('close', resolve)); // 파일 쓰기가 모두 끝나고 닫힌 시점
@@ -165,6 +172,7 @@ class FtpReceiver {
         ds.on('end', () => { ended = true; out.end(); resolve(); });
         ds.on('close', () => resolve());
       });
+      if (!sock.destroyed) sock.setTimeout(this.idleMs);
       if (failed) return;
       if (!ended) return fail(426, 'Connection closed before end of data'); // 중간에 끊긴 전송은 저장하지 않음
       await flushed; // 쓰기 완료 전에 rename 하면 파일이 잘린다

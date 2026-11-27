@@ -97,6 +97,22 @@ FR.download = function download(name, content, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+/**
+ * 브라우저가 검색창을 로그인 아이디 칸으로 보고 계정을 채우는 것을 막는다.
+ * 읽기 전용 칸은 자동완성하지 않으므로, 사용자가 선택했을 때만 입력할 수 있게 연다.
+ */
+FR.blockAutofill = function blockAutofill(input) {
+  input.setAttribute('autocomplete', 'off');
+  input.setAttribute('name', `q-${input.id}`);
+  input.setAttribute('data-lpignore', 'true');
+  input.setAttribute('data-1p-ignore', '');
+  input.readOnly = true;
+  const unlock = () => { input.readOnly = false; };
+  input.addEventListener('pointerdown', unlock);
+  input.addEventListener('focus', unlock);
+  input.addEventListener('blur', () => { input.readOnly = true; });
+};
+
 /** 검색어를 한 번만 소문자·공백제거해 두고(필터 호출마다 재계산하지 않도록) 목록 필터 함수를 만든다 */
 FR.makeJobSearchFilter = function makeJobSearchFilter() {
   const q = FR.state.search.trim().toLowerCase();
@@ -104,6 +120,7 @@ FR.makeJobSearchFilter = function makeJobSearchFilter() {
   const contentIds = FR.state.contentIds;
   return (job) => contentIds.has(job.id)
     || (job.fileName || '').toLowerCase().includes(q)
+    || (job.owner ? `${job.owner.name} ${job.owner.email}`.toLowerCase().includes(q) : false)
     || (job.result && job.result.docType ? job.result.docType.toLowerCase().includes(q) : false)
     || String(job.id).toLowerCase().includes(q);
 };

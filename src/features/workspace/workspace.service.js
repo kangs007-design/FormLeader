@@ -85,9 +85,15 @@ class WorkspaceService {
       },
     };
   }
+  /** @returns 서버 시작 후 이어서 진행할 분할 처리 작업 id */
   async recover() {
+    const resumable = [];
     for (const j of await this.jobs.repo.list())
-      if (["pending", "processing"].includes(j.status))
+      if (["pending", "processing"].includes(j.status)) {
+        if (await this.jobs.prepareResume(j)) {
+          resumable.push(j.id);
+          continue;
+        }
         await this.jobs._patch(
           j.id,
           {
@@ -98,6 +104,7 @@ class WorkspaceService {
           },
           "status.failed",
         );
+      }
     for (const d of await this.deliveries.list())
       if (["pending", "sending"].includes(d.status))
         await this.deliveries.update(d.id, {
@@ -105,6 +112,7 @@ class WorkspaceService {
           error:
             "서버 재시작으로 전송 완료를 확인하지 못했습니다. 같은 전송 키로 다시 시도할 수 있습니다.",
         });
+    return resumable;
   }
   async saveSettings(input) {
     if (input.engine !== undefined) {
@@ -327,6 +335,12 @@ class WorkspaceService {
   async compare(input, actor) {
     if (!input.leftId || !input.rightId || input.leftId === input.rightId)
       throw AppError.badRequest("서로 다른 두 문서를 선택하세요.");
+    // 큰 문서는 결과를 읽기 전에 먼저 거절한다
+    const words = async (id) => (await this.jobs.get(id)).ocrResult?.wordCount || 0;
+    if ((await words(input.leftId)) + (await words(input.rightId)) > 100000)
+      throw AppError.badRequest(
+        "비교할 문서가 너무 큽니다. 문서를 분리한 뒤 비교하세요.",
+      );
     const left = await this.jobs.getOcrView(input.leftId),
       right = await this.jobs.getOcrView(input.rightId);
     const tokens = (view) =>
@@ -566,6 +580,7 @@ class WorkspaceService {
       await Promise.all([...this.outgoing]);
       const samples = await this.samples.list();
       for (const j of jobs) {
+        this.jobs.removeParts(j.id);
         this.unlinkManaged(this.config.storage.inputDir, j.storedName);
         this.unlinkManaged(this.config.storage.outputDir, `${j.id}.json`);
         this.unlinkManaged(

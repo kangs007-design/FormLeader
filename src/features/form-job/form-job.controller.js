@@ -1,8 +1,19 @@
 "use strict";
 /** 개별기능[form-job]: API 라우트 (작업 요청/현황/OCR 결과) */
 
-function registerFormJobRoutes(router, { formJobService }) {
-  router.add("GET", "/api/jobs", async ({ req }) => formJobService.list(req.user));
+const { ownerOf } = require("./form-job.service");
+
+function registerFormJobRoutes(router, { formJobService, authService }) {
+  router.add("GET", "/api/jobs", async ({ req }) => {
+    const jobs = await formJobService.list(req.user);
+    if (req.user.role !== "admin") return jobs;
+    // 관리자에게는 어느 계정이 올린 문서인지 함께 알려 준다
+    const users = new Map(authService.listUsers().map((u) => [u.id, u]));
+    return jobs.map((job) => {
+      const user = users.get(ownerOf(job));
+      return { ...job, owner: user ? { name: user.name, email: user.email } : null };
+    });
+  });
   router.add("GET", "/api/jobs/search", async ({ query, req }) =>
     formJobService.searchContent(query.q, req.user),
   );
@@ -10,7 +21,10 @@ function registerFormJobRoutes(router, { formJobService }) {
     formJobService.get(params.id),
   );
   router.add("GET", "/api/jobs/:id/ocr", async ({ params }) =>
-    formJobService.getOcrView(params.id),
+    formJobService.getOcrScreenView(params.id),
+  );
+  router.add("GET", "/api/jobs/:id/ocr/pages/:page", async ({ params }) =>
+    formJobService.getOcrPage(params.id, params.page),
   );
   router.add("GET", "/api/jobs/:id/diagnostics", ({ params }) =>
     formJobService.diagnostics(params.id),

@@ -284,7 +284,7 @@ function createApp(config = createConfig()) {
   }
 
   const start = async () => {
-    await workspaceService.recover();
+    const resumable = await workspaceService.recover();
     if (ftpReceiver) {
       config.ftp.port = await ftpReceiver.start();
       log.info(
@@ -307,6 +307,8 @@ function createApp(config = createConfig()) {
       throw e;
     }
     log.info(`TextSense 시작: http://localhost:${port}`);
+    // 결과를 받을 포트가 모두 열린 뒤에 이어서 처리한다
+    for (const id of resumable) formJobService.launch(id);
     return port;
   };
   const stop = async () => {

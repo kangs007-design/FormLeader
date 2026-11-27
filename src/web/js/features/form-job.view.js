@@ -14,6 +14,11 @@ FR.formJobView = (() => {
     SUCCESS: "OCR 완료",
     FAILURE: "OCR 실패",
   };
+  /** 나눠서 처리하는 문서의 진행 상황 */
+  const progressText = (job) =>
+    job.progress
+      ? ` ${job.progress.done.toLocaleString()} / ${job.progress.total.toLocaleString()}페이지`
+      : "";
   const STATUS_LABEL = {
     pending: "대기",
     processing: "처리중",
@@ -38,14 +43,21 @@ FR.formJobView = (() => {
     );
   }
 
-  /** 작업이 끝날 때까지 1초 간격으로 확인하며 진행 상태를 표시. 완료되면 결과 링크를 붙인다. */
+  /** 작업이 끝날 때까지 확인하며 진행 상태를 표시. 완료되면 결과 링크를 붙인다. (대용량 문서는 몇 시간 걸릴 수 있다) */
   async function watchJob(id, li, fileName, autoShow) {
-    const end = Date.now() + 10 * 60 * 1000;
-    while (Date.now() < end) {
+    const started = Date.now();
+    let errors = 0;
+    while (li.isConnected) {
+      const long = Date.now() - started > 120000;
       let job;
       try {
         job = await FR.api("GET", `/api/jobs/${id}`);
+        errors = 0;
       } catch (e) {
+        if (++errors < 30 && e.code !== "NOT_FOUND") {
+          await FR.sleep(5000);
+          continue;
+        }
         li.className = "ng";
         li.textContent = `${fileName} → 상태 조회 실패: ${e.message}`;
         return;
@@ -61,7 +73,8 @@ FR.formJobView = (() => {
             "결과 보기",
           ),
         );
-        if (autoShow) showResult(id);
+        // 오래 걸린 작업은 다른 일을 하는 중일 수 있으므로 화면을 옮기지 않는다
+        if (autoShow && !long && FR.isTabActive("job-request")) showResult(id);
         return;
       }
       if (job.status === "failed") {
@@ -73,11 +86,15 @@ FR.formJobView = (() => {
         li.textContent = `${fileName} → 취소됨`;
         return;
       }
-      li.textContent = `${fileName} → ${ENGINE_LABEL[job.engineStatus] || STATUS_LABEL[job.status]}...`;
-      await FR.sleep(1000);
+      const pages = job.pageSizes?.length || 0;
+      const minutes = Math.floor((Date.now() - started) / 60000);
+      li.textContent =
+        `${fileName} → ${ENGINE_LABEL[job.engineStatus] || STATUS_LABEL[job.status]}...` +
+        progressText(job) +
+        (pages > 100 ? ` (${pages.toLocaleString()}페이지 · 대용량 문서는 몇 시간 걸릴 수 있으며 다른 화면을 사용해도 계속 처리됩니다)` : "") +
+        (minutes ? ` · ${minutes}분 경과` : "");
+      await FR.sleep(long ? 5000 : 1000);
     }
-    li.className = "ng";
-    li.textContent = `${fileName} → 확인 시간 초과. 작업 현황에서 확인하세요.`;
   }
 
   const MAX_UPLOAD_MB = 45; // 서버 요청 한도(60MB, Base64 포함)에 맞춘 원본 파일 최대 크기
@@ -118,6 +135,22 @@ FR.formJobView = (() => {
     }
   }
 
+  const isAdmin = () => FR.currentUser?.role === "admin";
+  const columnCount = () => (isAdmin() ? 6 : 5);
+
+  /** 관리자 목록의 "작업자" 칸 (문서를 올린 계정) */
+  const ownerCell = (job) =>
+    FR.el(
+      "td",
+      { class: "owner-cell", "data-label": "작업자" },
+      job.owner
+        ? [
+            FR.el("span", { class: "owner-name" }, job.owner.name),
+            FR.el("span", { class: "owner-email", title: job.owner.email }, job.owner.email),
+          ]
+        : FR.el("span", { class: "owner-email" }, "기록 없음"),
+    );
+
   async function loadStatus() {
     const jobs = await FR.api("GET", "/api/jobs");
     const matchesSearch = FR.makeJobSearchFilter();
@@ -134,7 +167,7 @@ FR.formJobView = (() => {
     if (!shown.length) {
       body.replaceChildren(
         FR.emptyRow(
-          5,
+          columnCount(),
           FR.state.search
             ? "검색어와 일치하는 문서가 없습니다."
             : "이 상태의 문서가 없습니다. 문서를 업로드하고 시작하세요.",
@@ -157,7 +190,7 @@ FR.formJobView = (() => {
                 st.label,
               ),
               j.status === "processing" && j.engineStatus
-                ? ` ${ENGINE_LABEL[j.engineStatus] || j.engineStatus}`
+                ? ` ${j.progress ? progressText(j).trim() : ENGINE_LABEL[j.engineStatus] || j.engineStatus}`
                 : "",
               j.error ? FR.el("span", { class: "job-error" }, j.error) : "",
               j.splitError
@@ -170,7 +203,7 @@ FR.formJobView = (() => {
               j.parentId
                 ? FR.el(
                     "span",
-                    { class: "split-badge" },
+                    { class: j.relation === "split" ? "split-badge" : "retry-note" },
                     j.relation === "split"
                       ? `분리 문서 · 원본 ${j.sourcePages?.join(", ")} 페이지`
                       : "재처리 문서",
@@ -180,6 +213,7 @@ FR.formJobView = (() => {
                 ? FR.el("span", { class: "job-error" }, j.cancellation.message)
                 : "",
             ),
+            ...(isAdmin() ? [ownerCell(j)] : []),
             FR.el("td", { "data-label": "문서 유형" }, FR.docTypeLabel(j)),
             FR.el("td", { "data-label": "등록일" }, FR.shortDate(j.createdAt)),
             FR.el(
@@ -409,17 +443,43 @@ FR.formJobView = (() => {
     };
   }
 
+  const wordCountOf = (p) => (p.words ? p.words.length : p.wordCount);
+
   function renderPageTabs() {
     const pages = viewer.view.pages;
+    // 페이지가 많으면 현재 페이지 주변과 처음·끝만 탭으로 만들고, 번호로 바로 이동하게 한다
+    const many = pages.length > 50;
+    const shown = pages
+      .map((p, i) => ({ p, i }))
+      .filter(({ i }) => !many || i === 0 || i === pages.length - 1 || Math.abs(i - viewer.idx) <= 5);
+    const bar = FR.$("#or-page-tabs");
     buildTabbar(
-      FR.$("#or-page-tabs"),
-      pages.map((p, i) => ({
+      bar,
+      shown.map(({ p, i }) => ({
         key: String(i),
         label: `${p.page} 페이지`,
-        count: p.words.length,
+        count: wordCountOf(p),
       })),
       String(viewer.idx),
       (k) => selectPage(Number(k)),
+    );
+    if (!many) return;
+    bar.prepend(
+      FR.el(
+        "label",
+        { class: "page-jump" },
+        "페이지 이동",
+        FR.el("input", {
+          type: "number",
+          min: 1,
+          max: pages.length,
+          value: viewer.idx + 1,
+          "aria-label": `이동할 페이지 (1~${pages.length})`,
+          onkeydown: (e) => e.stopPropagation(),
+          onchange: (e) => selectPage(Math.min(pages.length, Math.max(1, Math.floor(Number(e.target.value)) || 1)) - 1),
+        }),
+        `/ ${pages.length}`,
+      ),
     );
   }
 
@@ -518,9 +578,24 @@ FR.formJobView = (() => {
   }
 
   /** 페이지 선택: 하단 탭, 상단 문서 뷰어, 상세 내용을 모두 같은 페이지로 맞춘다 */
-  function selectPage(i) {
-    if (!viewer.view || i < 0 || i >= viewer.view.pages.length) return;
+  async function selectPage(i) {
+    const view = viewer.view;
+    if (!view || i < 0 || i >= view.pages.length) return;
     viewer.idx = i;
+    const p = view.pages[i];
+    if (!p.words) {
+      // 대용량 문서: 선택한 페이지의 상세만 불러온다
+      renderPageTabs();
+      FR.$("#or-page-panel").replaceChildren(FR.el("p", { class: "panel-empty" }, `${p.page} 페이지를 불러오는 중...`));
+      try {
+        Object.assign(p, await FR.api("GET", `/api/jobs/${view.jobId}/ocr/pages/${p.page}`));
+      } catch (e) {
+        if (viewer.view === view && viewer.idx === i)
+          FR.$("#or-page-panel").replaceChildren(FR.el("p", { class: "msg ng" }, `페이지를 불러오지 못했습니다: ${e.message}`));
+        return;
+      }
+      if (viewer.view !== view || viewer.idx !== i) return;
+    }
     FR.docViewer.show(viewer.idx);
     renderPageTabs();
     renderPagePanel();
@@ -646,6 +721,13 @@ FR.formJobView = (() => {
           ),
         );
       }
+    } else if (view.lazy && allText.length > 1000000) {
+      banner.className = "banner info";
+      banner.replaceChildren(
+        FR.icon("check-circle"),
+        "본문이 커서 화면에서 한 번에 수정할 수 없습니다. 페이지별로 확인하고, 수정이 필요하면 내보내기를 이용하세요.",
+      );
+      pill.textContent = "미분류";
     } else {
       banner.className = `banner ${job.review && job.review.confirmed ? "ok" : "info"}`;
       banner.replaceChildren(
@@ -681,27 +763,28 @@ FR.formJobView = (() => {
       );
     }
 
-    const words = view.pages
-      .flatMap((p) => p.words)
-      .filter((w) => w.conf !== null);
-    const avg = words.length
-      ? (words.reduce((a, w) => a + w.conf, 0) / words.length).toFixed(2)
-      : "-";
-    const dl = FR.el("dl", { class: "summary-list" });
-    [
+    let sum = 0;
+    let count = 0;
+    for (const p of view.pages) {
+      if (view.lazy) {
+        sum += p.confSum;
+        count += p.confCount;
+      } else
+        for (const w of p.words)
+          if (w.conf !== null) {
+            sum += w.conf;
+            count += 1;
+          }
+    }
+    const avg = count ? (sum / count).toFixed(2) : "-";
+    FR.$("#or-summary").replaceChildren(
+      ...[
       ["페이지", `${r.pageCount}장`],
       ["인식한 단어", `${r.wordCount}개`],
       ["표", `${r.tableCount}개`],
       ["평균 신뢰도", avg],
       ["처리 시각", FR.fmtTime(job.updatedAt)],
-    ].forEach(([k, v]) => dl.append(FR.el("dt", {}, k), FR.el("dd", {}, v)));
-    box.append(
-      FR.el(
-        "div",
-        { class: "field" },
-        FR.el("span", { class: "field-label" }, "인식 요약"),
-        dl,
-      ),
+      ].map(([k, v]) => FR.el("div", {}, FR.el("dt", {}, k), FR.el("dd", {}, v))),
     );
   }
 
@@ -729,6 +812,7 @@ FR.formJobView = (() => {
         `${job.ocrResult.pageCount}페이지 · ${job.ocrResult.wordCount}단어 · ${FR.fmtTime(job.updatedAt)}`;
       FR.showTab("ocr-result"); // 화면을 먼저 보이게 해야 뷰어가 실제 폭을 측정해서 문서를 그린다
 
+      view.jobId = id;
       Object.assign(viewer, { view, idx: 0, sub: "text" });
       FR.docViewer.open({ jobId: id, fileName: job.fileName, view }); // 원본 문서 뷰어 준비
       allText = view.pages
@@ -831,7 +915,7 @@ FR.formJobView = (() => {
       schedulePoll(await loadStatus());
     } catch (e) {
       FR.$("#js-body").replaceChildren(
-        FR.emptyRow(5, `문서를 불러오지 못했습니다: ${e.message}`),
+        FR.emptyRow(columnCount(), `문서를 불러오지 못했습니다: ${e.message}`),
       );
     }
   }

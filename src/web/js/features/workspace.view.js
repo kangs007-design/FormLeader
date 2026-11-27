@@ -7,6 +7,7 @@ FR.eventLabel = (type) =>
     "status.failed": "인식 실패",
     "status.cancelled": "작업 취소",
     "review.saved": "검수 저장",
+    "job.resumed": "서버 재시작 후 이어서 처리",
     "template.reapplied": "서식 재적용",
     "document.split": "문서 분리",
     "split.created": "분리 문서 생성",
@@ -305,6 +306,26 @@ FR.compareView = (() => {
     moved: "위치 변경",
     pages: "페이지 수 변경",
   };
+  /** 차이 유형별 색상 설명 (목록의 왼쪽 색 띠와 같은 색) */
+  const legend = {
+    added: "비교 문서에만 있는 내용",
+    removed: "원본 문서에만 있는 내용",
+    changed: "같은 자리의 내용이 달라짐",
+    moved: "내용은 같고 위치가 달라짐",
+    pages: "두 문서의 페이지 수가 다름",
+  };
+  function renderLegend(differences) {
+    FR.$("#cp-legend").replaceChildren(
+      ...Object.entries(legend).map(([type, text]) =>
+        FR.el(
+          "li",
+          { class: type },
+          FR.el("strong", {}, `${label[type]} ${differences.filter((d) => d.type === type).length}`),
+          FR.el("span", {}, text),
+        ),
+      ),
+    );
+  }
   async function load() {
     jobs = (await FR.api("GET", "/api/jobs")).filter(
       (j) => j.status === "done",
@@ -424,9 +445,17 @@ FR.compareView = (() => {
           }),
         );
       }
+      // 문서 영역 안에서만 스크롤한다 (아래의 차이점 목록 위치는 그대로 둔다)
       requestAnimationFrame(() => {
-        const h = layer.firstElementChild;
-        if (h) h.scrollIntoView({ behavior: "smooth", block: "center" });
+        const h = layer.firstElementChild,
+          panel = box.closest(".compare-document");
+        if (!h || !panel) return;
+        const hr = h.getBoundingClientRect(),
+          pr = panel.getBoundingClientRect();
+        panel.scrollTo({
+          top: panel.scrollTop + hr.top - pr.top - (panel.clientHeight - hr.height) / 2,
+          behavior: "smooth",
+        });
       });
     } catch (e) {
       surface.replaceChildren(
@@ -443,6 +472,7 @@ FR.compareView = (() => {
     ]);
     FR.$("#cp-result").hidden = false;
     FR.$("#cp-count").textContent = `차이점 ${c.differences.length}건`;
+    renderLegend(c.differences);
     FR.$("#cp-differences").replaceChildren(
       ...c.differences.map((d, i) =>
         FR.el(
@@ -476,7 +506,7 @@ FR.compareView = (() => {
       fileName: file.name,
       contentBase64: await FR.readFileAsBase64(file),
     });
-    for (let i = 0; i < 300; i++) {
+    for (;;) {
       const x = await FR.api("GET", `/api/jobs/${j.id}`);
       if (x.status === "done") {
         FR.$(`#cp-${side}-file`).value = "";
@@ -484,9 +514,8 @@ FR.compareView = (() => {
       }
       if (["failed", "cancelled"].includes(x.status))
         throw new Error(x.error || "문서 인식이 취소됐습니다.");
-      await FR.sleep(1000);
+      await FR.sleep(2000);
     }
-    throw new Error("인식 중입니다. 전체 문서에서 완료 후 선택하세요.");
   }
   return {
     load,

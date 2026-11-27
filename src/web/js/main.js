@@ -67,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   FR.usersView.init();
   FR.operationsView.init();
   FR.compareView.init();
+  document.querySelectorAll('input[type="search"]').forEach(FR.blockAutofill);
   if (FR.productCapabilities?.ocrProcessing === false) {
     document.querySelectorAll('#tabs [data-tab]').forEach((button) => {
       if (button.dataset.tab !== 'dashboard' && !FR.productCapabilities.tabs.includes(button.dataset.tab)) {
@@ -133,6 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   initNavGroups();
+  initSidebarCollapse();
   FR.mobileNav = FR.initMobileNav();
   document
     .querySelectorAll("#tabs .nav-item")
@@ -149,6 +151,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   FR.showTab(initial === "ocr-result" ? "job-status" : initial || "dashboard");
   FR.$("#workspace-app").hidden = false;
 });
+
+/** 데스크톱 사이드 메뉴 전체 접기(아이콘만 표시). 상태는 브라우저에 기억한다 */
+function initSidebarCollapse() {
+  const KEY = "fr.sidebarCollapsed";
+  const button = FR.$("#sidebar-collapse");
+  const set = (collapsed) => {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    const text = collapsed ? "메뉴 펼치기" : "메뉴 접기";
+    button.setAttribute("aria-pressed", String(collapsed));
+    button.title = text;
+    button.setAttribute("aria-label", text);
+    // 아이콘만 보일 때도 이름을 알 수 있게 한다
+    document.querySelectorAll(".sidebar .nav-item").forEach((item) => {
+      item.title = collapsed ? item.getAttribute("aria-label") || item.textContent.trim() : "";
+    });
+  };
+  let saved = false;
+  try { saved = localStorage.getItem(KEY) === "1"; } catch (_) { /* 저장소 사용 불가 */ }
+  set(saved);
+  button.addEventListener("click", () => {
+    const next = !document.body.classList.contains("sidebar-collapsed");
+    set(next);
+    try { localStorage.setItem(KEY, next ? "1" : "0"); } catch (_) { /* 무시 */ }
+  });
+}
 
 /** 사이드바 메뉴 그룹(WORKSPACE / MANAGE) 접기·펼치기. 상태는 브라우저에 기억한다 */
 function initNavGroups() {

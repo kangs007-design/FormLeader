@@ -3,8 +3,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-function signInputFile(config, fileName) {
-  const expires = Date.now() + Math.max(15 * 60 * 1000, config.jobTimeoutMs + 60000);
+function signInputFile(config, fileName, validMs = config.jobTimeoutMs) {
+  const expires = Date.now() + Math.max(15 * 60 * 1000, validMs + 60000);
   const signature = crypto.createHmac('sha256', config.fileAccessSecret).update(`${fileName}:${expires}`).digest('hex');
   return `${expires}.${signature}`;
 }

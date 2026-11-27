@@ -2,15 +2,18 @@
 const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
-const { PDFDocument } = require("pdf-lib");
+const { PDFDocument, ParseSpeeds } = require("pdf-lib");
 const { getImageSize } = require("./image-size.util");
 const { AppError } = require("./app.error");
+
+/** pdf-lib 기본값은 객체 100개마다 쉬어 대용량 PDF 가 수십 초 걸린다 */
+const PDF_LOAD = { parseSpeed: ParseSpeeds.Fastest };
 
 async function documentGeometry(file, pdfScale = 2) {
   const bytes = fs.readFileSync(file);
   if (path.extname(file).toLowerCase() === ".pdf") {
     try {
-      const pdf = await PDFDocument.load(bytes);
+      const pdf = await PDFDocument.load(bytes, PDF_LOAD);
       return pdf.getPages().map((p) => {
         const b = p.getCropBox(),
           rotation = ((p.getRotation().angle % 360) + 360) % 360;
@@ -53,7 +56,7 @@ async function imagePage(file, page = 1) {
 
 async function copyDocumentPages(file, numbers) {
   if (path.extname(file).toLowerCase() === ".pdf") {
-    const src = await PDFDocument.load(fs.readFileSync(file));
+    const src = await PDFDocument.load(fs.readFileSync(file), PDF_LOAD);
     if (numbers.some((n) => n < 1 || n > src.getPageCount()))
       throw AppError.badRequest("원본에 없는 페이지입니다.");
     const out = await PDFDocument.create();

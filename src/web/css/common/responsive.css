@@ -164,6 +164,13 @@ label.check-label > input, label:has(> input[type="checkbox"]) > input, label:ha
 
 /* 사이드바 제품명은 한 줄 (좁은 데스크톱 폭에서는 글자를 줄인다) */
 .brand-name, .brand-name [data-brand="productName"] { white-space: nowrap; overflow-wrap: normal; }
+/* 제품명 오른쪽의 메뉴 접기 버튼 자리를 남긴다 */
+@media (min-width: 1191px) {
+  .sidebar .brand { gap: 8px; padding-left: 4px; padding-right: 0; }
+  .sidebar .brand-mark { width: 32px; height: 32px; }
+  .sidebar .brand-name { font-size: 20px; letter-spacing: -.6px; }
+  .sidebar .brand-name small { font-size: 7px; letter-spacing: .9px; }
+}
 @media (min-width: 901px) and (max-width: 1190px) {
   .sidebar .brand { gap: 8px; padding-left: 4px; padding-right: 0; }
   .sidebar .brand-mark { width: 30px; height: 30px; }
@@ -203,3 +210,142 @@ label.check-label > input, label:has(> input[type="checkbox"]) > input, label:ha
 }
 #tab-operations .grid td button { white-space: nowrap; }
 #op-capabilities { margin-top: 12px; }
+
+/* 문서 업로드: 놓기 영역 크기 축소 */
+.upload-card .dropzone { min-height: 190px; padding: 18px 16px; gap: 6px; margin-top: 12px; }
+.upload-card .dropzone-icon { width: 42px; height: 42px; border-radius: 11px; margin-bottom: 2px; }
+.upload-card .dropzone-icon .icon { width: 20px; height: 20px; }
+.upload-card .dropzone .file-types { margin-top: 6px; }
+.upload-card .dropzone .choose-file { margin-top: 4px; }
+
+/* 문서 비교: 선택·첨부 칸과 실행 줄을 같은 열 격자에 맞춘다 */
+.compare-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; align-items: end; }
+.compare-form > label { min-width: 0; margin: 0; }
+.compare-form > label select, .compare-form > label input { width: 100%; min-width: 0; }
+.compare-history { grid-column: 1 / 3; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.compare-history select { flex: 1; min-width: 0; }
+.compare-history button { flex: none; white-space: nowrap; }
+.compare-run { grid-column: 4; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.compare-run label.check-label { white-space: nowrap; }
+.compare-run button { flex: 1; min-width: 0; white-space: nowrap; }
+.compare-history select, .compare-history button, .compare-run button { height: 38px; }
+@media (max-width: 1279px) {
+  .compare-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .compare-history { grid-column: 1; }
+  .compare-run { grid-column: 2; }
+}
+@media (max-width: 700px) {
+  .compare-form { grid-template-columns: minmax(0, 1fr); }
+  .compare-history, .compare-run { grid-column: 1; }
+}
+
+/* 대용량 문서 결과 화면: 페이지 번호로 이동 */
+.page-jump { display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 6px; flex: none; margin: 0 12px 0 0; white-space: nowrap; font-size: 12px; }
+.page-jump input { width: 84px !important; min-height: 32px; }
+
+/* 전체 문서: 업로드 계정 칸 (관리자) */
+.owner-cell .owner-name, .owner-cell .owner-email { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.owner-cell .owner-email { color: var(--c-text-sub); font-size: 11px; }
+/* 긴 파일명·이메일은 말줄임 처리해 작업 버튼이 표 밖으로 밀리지 않게 한다 */
+@media (min-width: 701px) and (max-width: 1500px) {
+  #tab-job-status table.grid .file-title { max-width: 240px; }
+  .owner-cell .owner-name, .owner-cell .owner-email { max-width: 170px; }
+}
+@media (min-width: 701px) and (max-width: 1279px) {
+  #tab-job-status table.grid .file-title { max-width: 150px; }
+  .owner-cell .owner-name, .owner-cell .owner-email { max-width: 120px; }
+}
+@media (max-width: 700px) {
+  .owner-cell .owner-name, .owner-cell .owner-email { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+}
+
+/* 사이드 메뉴 접기 (데스크톱) */
+.sidebar .sidebar-collapse { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: none; margin-left: auto; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--c-text-sub); box-shadow: none; }
+.sidebar .sidebar-collapse:hover { background: var(--brand-soft); color: var(--c-text); }
+.sidebar .sidebar-collapse .icon { width: 18px; height: 18px; }
+@media (max-width: 900px) { .sidebar .sidebar-collapse { display: none; } }
+@media (min-width: 901px) {
+  body.sidebar-collapsed { --sidebar-w: 68px; }
+  body.sidebar-collapsed .sidebar { padding-left: 8px; padding-right: 8px; }
+  body.sidebar-collapsed .sidebar .brand { flex-direction: column; justify-content: center; padding-left: 0; padding-right: 0; }
+  body.sidebar-collapsed .sidebar .sidebar-collapse { margin: 0; }
+  body.sidebar-collapsed .sidebar .brand-name,
+  body.sidebar-collapsed .sidebar .nav-group-toggle,
+  body.sidebar-collapsed .sidebar .nav-item > span,
+  body.sidebar-collapsed .sidebar .sidebar-tip,
+  body.sidebar-collapsed .sidebar .sidebar-foot,
+  body.sidebar-collapsed .sidebar .sidebar-help span,
+  body.sidebar-collapsed .sidebar .sidebar-help kbd { display: none; }
+  /* 그룹을 접어 둔 상태여도 아이콘 메뉴는 모두 보인다 */
+  body.sidebar-collapsed .sidebar .nav-group.collapsed .nav-group-items { display: flex; }
+  body.sidebar-collapsed .sidebar .nav-group + .nav-group { border-top: 1px solid var(--c-line); padding-top: 8px; }
+  body.sidebar-collapsed .sidebar .nav-item { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+  body.sidebar-collapsed .sidebar .nav-item:after { display: none; }
+  body.sidebar-collapsed .sidebar .sidebar-help { justify-content: center; padding-left: 0; padding-right: 0; }
+}
+
+/* 전체 문서: 검색·업로드 줄과 표 사이 여백 */
+#tab-job-status .library-toolbar { margin-bottom: 20px; }
+#tab-job-status .library-toolbar .library-search, #tab-job-status .library-toolbar > .primary { margin-bottom: 12px; }
+#tab-job-status .library-toolbar .filter-tabs { align-self: flex-end; }
+@media (max-width: 700px) {
+  #tab-job-status .library-toolbar .library-search { margin-bottom: 14px; }
+  #tab-job-status .library-toolbar > .primary { margin-bottom: 6px; }
+}
+
+/* 재처리 문서 표시: 실패 사유와 같은 글자 크기, 파란색 */
+.retry-note { display: block; line-height: 1.7; font-size: 9px; color: #2563c9; }
+
+/* 문서 검수: 인식 요약은 한 줄 띠로 */
+.or-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 26px; margin: 0 0 12px; padding: 9px 16px; background: #fff; border: 1px solid var(--c-line); border-radius: var(--radius-sm); font-size: 12px; }
+.or-summary div { display: flex; align-items: baseline; gap: 7px; }
+.or-summary dt { color: var(--c-text-sub); }
+.or-summary dd { margin: 0; font-weight: 650; }
+
+/* 인식 결과 패널: 입력 항목만 안에서 스크롤하고 저장 영역은 아래에 고정 */
+.result-card { display: flex; flex-direction: column; }
+.result-card .result-body { padding: 12px 14px; gap: 10px; min-height: 0; }
+.result-card .banner { margin: 0; padding: 8px 12px; }
+.result-card #or-fields { gap: 9px; overflow: auto; padding: 2px; max-height: 60vh; }
+.result-card #or-fields > * { flex: none; }
+.result-card #or-fields > .field:has(textarea) { flex: 1 0 auto; }
+.result-card .field { gap: 3px; margin: 0; }
+.result-card .field input { height: 34px; min-height: 34px; }
+.result-card .field-original, .result-card .field-err { font-size: 11px; line-height: 1.5; }
+.result-footer { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--c-line); padding-top: 10px; }
+.result-footer .review-actions { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; }
+.result-footer .review-actions[hidden] { display: none; }
+.result-footer .msg:empty { display: none; }
+/* 서식 없는 문서의 본문: 바깥 영역은 고정하고 입력창 하나만 스크롤한다 (이중 스크롤 방지) */
+.result-card #or-fields:has(#or-review-text) { overflow: visible; max-height: none; }
+.result-card #or-fields > .field:has(#or-review-text) { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.result-card #or-review-text { flex: none; height: 50vh; min-height: 220px; }
+@media (min-width: 1191px) {
+  /* 오른쪽 패널 높이를 원본 화면에 맞춘다 (아래 빈 공간 방지) */
+  .viewer { align-items: stretch; min-height: 560px; }
+  .viewer > .card:first-child { display: flex; flex-direction: column; }
+  .viewer > .card:first-child .sheet-stage { flex: 1; }
+  .result-card { contain: size; }
+  .result-card .result-body { flex: 1; }
+  .result-card #or-fields { flex: 1 1 0; min-height: 0; max-height: none; }
+  .result-card #or-fields:has(#or-review-text) { overflow: hidden; }
+  .result-card #or-review-text { flex: 1 1 0; height: 0; min-height: 0; resize: none; }
+}
+
+#cp-msg:not(:empty) { display: block; margin-top: 12px; }
+
+/* 문서 비교: 차이 유형 설명 */
+.compare-changes-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; margin-bottom: 10px; }
+.compare-changes-head h3 { margin: 0; white-space: nowrap; }
+.compare-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; font-size: 12px; color: var(--c-text-sub); }
+.compare-legend li { display: flex; align-items: center; gap: 6px; border-left: 4px solid; padding-left: 7px; }
+.compare-changes-head .compare-legend { flex: 1 1 0; min-width: 0; }
+@media (max-width: 700px) { .compare-changes-head .compare-legend { flex-basis: 100%; } }
+.compare-legend strong { color: var(--c-text); font-weight: 650; white-space: nowrap; }
+.compare-legend .added, .difference.added { border-left-color: #198463; }
+.compare-legend .removed, .difference.removed { border-left-color: #c54545; }
+.compare-legend .changed { border-left-color: #2563c9; }
+.difference.changed { border-left: 4px solid #2563c9; }
+.compare-legend .moved, .difference.moved { border-left-color: #b48220; }
+.compare-legend .pages { border-left-color: #7a55b8; }
+.difference.pages { border-left: 4px solid #7a55b8; }

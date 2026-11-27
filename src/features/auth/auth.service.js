@@ -62,6 +62,8 @@ class AuthService {
           }
           if (ctx.path === '/sign-up/email') {
             if (!this.hasAdmin() && ctx.request) throw new APIError('FORBIDDEN', { message: '먼저 서버 PC에서 최초 관리자 계정을 설정해 주세요.' });
+            // 라이브러리는 이미 있는 이메일에도 성공처럼 응답하므로 여기서 먼저 알려 준다 (사내망 전용 서비스)
+            if (typeof ctx.body?.email === 'string' && this.findByEmail(ctx.body.email.trim())) throw new APIError('UNPROCESSABLE_ENTITY', { code: 'USER_ALREADY_EXISTS', message: '이미 가입했거나 가입 신청한 이메일입니다.' });
             if (typeof ctx.body?.name !== 'string' || !ctx.body.name.trim() || ctx.body.name.length > 80) throw new APIError('BAD_REQUEST', { message: '이름은 1~80자로 입력해 주세요.' });
             if (ctx.body.department && (typeof ctx.body.department !== 'string' || ctx.body.department.length > 100)) throw new APIError('BAD_REQUEST', { message: '소속은 100자 이내로 입력해 주세요.' });
           }

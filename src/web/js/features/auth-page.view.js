@@ -6,7 +6,7 @@
   const messages = {
     INVALID_EMAIL_OR_PASSWORD: '이메일 또는 비밀번호가 올바르지 않습니다.', INVALID_PASSWORD: '비밀번호가 올바르지 않습니다.',
     PASSWORD_TOO_SHORT: '비밀번호는 12자 이상 입력해 주세요.', PASSWORD_TOO_LONG: '비밀번호는 128자 이내로 입력해 주세요.',
-    INVALID_EMAIL: '올바른 이메일 주소를 입력해 주세요.', USER_ALREADY_EXISTS: '이미 등록된 이메일입니다.', TOO_MANY_REQUESTS: '요청이 많습니다. 잠시 후 다시 시도해 주세요.',
+    INVALID_EMAIL: '올바른 이메일 주소를 입력해 주세요.', USER_ALREADY_EXISTS: '이미 가입했거나 가입 신청한 이메일입니다. 로그인하거나 관리자에게 문의해 주세요.', TOO_MANY_REQUESTS: '요청이 많습니다. 잠시 후 다시 시도해 주세요.',
   };
   const fieldOfError = (code) => ({
     INVALID_EMAIL: $('#auth-email'), USER_ALREADY_EXISTS: $('#auth-email'),

@@ -24,6 +24,7 @@ FR.accountView = (() => {
     FR.$('#current-user-avatar').textContent = user.name.slice(0, 1).toUpperCase();
     FR.$('#mode-notice').hidden = info.mode !== 'mock';
     const dialog = FR.$('#profile-dialog');
+    FR.$('#profile-username').value = user.email; // 브라우저가 비밀번호 칸의 아이디를 다른 입력칸에서 찾지 않게 한다
     const dl = FR.$('#profile-info');
     for (const [name, value] of [['이름', user.name], ['이메일', user.email], ['소속', user.department || '—'], ['권한', admin ? '관리자' : '일반 사용자']]) dl.append(FR.el('dt', {}, name), FR.el('dd', {}, value));
     FR.$('#profile-open').addEventListener('click', () => dialog.showModal());

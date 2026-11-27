@@ -8,6 +8,7 @@ const {
  * 작업 상태: pending → processing → done | failed
  * TextSense 상태: AWAITING / PROGRESSING / SUCCESS / FAILURE (engineStatus 로 보관)
  */
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { readJsonFileSync } = require("../../common/json-file.util");
@@ -25,6 +26,7 @@ const { getImageSize } = require("../../common/image-size.util");
 const { detectLocalAddress } = require("../../common/local-address.util");
 const { AppError } = require("../../common/app.error");
 const { createLogger } = require("../../common/logger.util");
+const { runResultTask } = require("../ocr-result/ocr-heavy.worker");
 
 const ALLOWED_EXT = [".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"];
 /** 확장자별 파일 시작 바이트(시그니처). 내용이 다른 형식이면 엔진에 보내기 전에 거절한다. */
@@ -42,6 +44,8 @@ function matchesFileType(ext, bytes) {
 }
 const MAX_TRANSIENT_STATUS_ERRORS = 5;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** 서버가 재시작돼도 분할 처리를 자동으로 이어가는 최대 횟수 */
+const MAX_RESUMES = 3;
 /** 문서 소유자: 저장된 ownerId, 이전 데이터는 최초 이벤트의 작업자 */
 const ownerOf = (job) => job.ownerId || job.events?.[0]?.actor || null;
 /** 관리자는 전체, 일반 사용자는 본인 문서만 */
@@ -64,7 +68,7 @@ class FormJobService {
   /** 목록용: 큰 값(추출 Key-Value)은 빼고 화면 표시에 필요한 요약(result)만 포함 */
   list(user) {
     return this.repo.list().then((l) =>
-      (user ? l.filter((job) => canAccess(user, job)) : l).map(({ ocrResult, ...summary }) => ({
+      (user ? l.filter((job) => canAccess(user, job)) : l).map(({ ocrResult, pageSizes, ...summary }) => ({
         ...summary,
         result: ocrResult
           ? {
@@ -99,12 +103,11 @@ class FormJobService {
       if (!entry || entry.mtime !== mtime) {
         let text = "";
         try {
-          const pages = readJsonFileSync(file)?.document?.pages || {};
-          text = Object.values(pages).map((p) => p.content || "").join("\n");
+          text = await runResultTask("text", { file }, this.config.heavyResultBytes);
         } catch (_) {
           /* 읽을 수 없는 결과는 검색에서 제외 */
         }
-        entry = { mtime, text: text.toLowerCase() };
+        entry = { mtime, text };
         this.textCache.set(job.id, entry);
       }
       // 검수로 수정한 본문은 캐시하지 않고 매번 확인한다 (수정 즉시 검색에 반영)
@@ -290,7 +293,9 @@ class FormJobService {
     removeManagedFile(this.config.storage.inputDir, job.storedName);
     removeManagedFile(this.config.storage.outputDir, `${id}.json`);
     removeManagedFile(this.config.storage.outputDir, `${id}.classification.json`);
+    this.removeParts(id);
     this.textCache?.delete(id);
+    if (this.pageCache?.id === id) this.pageCache = null;
     for (const other of await this.repo.list()) {
       const patch = {};
       if (other.children?.includes(id))
@@ -320,6 +325,7 @@ class FormJobService {
       relation: "retry",
       actor,
       ownerId: ownerOf(job),
+      resume: job.chunkPages ? { from: id, chunkPages: job.chunkPages } : null,
     });
   }
 
@@ -334,6 +340,7 @@ class FormJobService {
     relation = null,
     actor = null,
     ownerId = actor,
+    resume = null,
   }) {
     if (this.resetting)
       throw AppError.badRequest("초기화 중입니다. 잠시 후 다시 시도하세요.");
@@ -375,14 +382,24 @@ class FormJobService {
     const { inputDir } = this.config.storage;
     fs.mkdirSync(inputDir, { recursive: true });
     fs.writeFileSync(path.join(inputDir, storedName), bytes);
-    const pageSizes = await documentGeometry(
-      path.join(inputDir, storedName),
-      this.config.pdfOcrScale,
+    const pageSizes = await runResultTask(
+      "geometry",
+      { file: path.join(inputDir, storedName), pdfScale: this.config.pdfOcrScale },
+      this.config.heavyResultBytes,
     );
+
+    // 페이지가 많은 PDF 는 나눠서 엔진에 보낸다 (다시 처리할 때는 같은 크기로 나눠야 완료분을 재사용할 수 있다)
+    const size = resume?.chunkPages || this.config.ocrChunkPages;
+    const chunkPages =
+      ext === ".pdf" && size > 0 && pageSizes.length > size ? size : null;
+    if (resume && chunkPages) this._moveCompletedParts(resume.from, id);
 
     const now = new Date().toISOString();
     const job = await this.repo.insert({
       id,
+      ...(chunkPages
+        ? { chunkPages, progress: { done: 0, total: pageSizes.length } }
+        : {}),
       ownerId,
       fileName: safeName,
       storedName,
@@ -402,11 +419,16 @@ class FormJobService {
       events: [{ type: "created", at: now, actor }],
     });
 
+    this.launch(id);
+    return job;
+  }
+
+  /** OCR 처리를 백그라운드로 시작 */
+  launch(id) {
     const p = this.run(id)
       .catch((e) => this.log.error("작업 실행 오류", id, e.message))
       .finally(() => this.running.delete(p));
     this.running.add(p);
-    return job;
   }
 
   async _patch(id, patch, event, actor = null) {
@@ -500,10 +522,10 @@ class FormJobService {
   }
 
   /** 입력 파일 URI: FORMREADER_PUBLIC_URL 이 있으면 HTTP, 없으면 ePapyrus 공유 경로(file) */
-  async _inputUri(storedName) {
+  async _inputUri(storedName, validMs) {
     const { publicUrl, storage } = this.config;
     if (!publicUrl) return `${storage.inputUri}/${storedName}`;
-    const token = signInputFile(this.config, storedName);
+    const token = signInputFile(this.config, storedName, validMs);
     if (String(publicUrl).toLowerCase() !== "auto")
       return `${publicUrl}/files/input/${storedName}?token=${token}`;
     return `http://${await this._publicHost("auto")}:${this.config.httpPort || this.config.port}/files/input/${storedName}?token=${token}`;
@@ -525,58 +547,26 @@ class FormJobService {
       await this._patch(id, { status: "processing" });
 
       const outputName = `${id}.json`;
-      const recognize = async () => {
-        const res = await this.client
-          .buildJob({
-            inputUri: await this._inputUri(job.storedName),
-            outputUri: await this._outputUri(outputName),
-            outputType: "json",
-            ...this.engineOptions(job),
-          })
-          .catch((err) => {
-            if (["TIMEOUT", "UPSTREAM_ERROR"].includes(err.code)) {
-              this.log.warn("OCR 작업 접수 응답 없음", err.message);
-              throw new AppError(
-                err.status || 502,
-                "ENGINE_CONNECTION",
-                "파일은 정상 저장됐지만 OCR 서버에 작업을 요청하지 못했습니다. VPN 연결과 OCR 서버 상태를 확인한 뒤 다시 처리해 주세요.",
-              );
-            }
-            throw err;
-          });
-        if (res.status < 200 || res.status >= 300) {
-          throw AppError.upstream(
-            `TextSense 작업 요청 실패 (HTTP ${res.status})`,
-            { response: res.text.slice(0, 500) },
-          );
-        }
-        const taskId = res.json && res.json.id;
-        if (!taskId)
-          throw AppError.upstream("TextSense 응답에 작업 id 가 없습니다.", {
-            response: res.text.slice(0, 500),
-          });
-        await this._patch(id, {
-          taskId,
-          engineStatus: res.json.status || "AWAITING",
+      const outputFile = path.join(this.config.storage.outputDir, outputName);
+      const pageCount = job.pageSizes?.length || 1;
+      const recognize = () =>
+        job.chunkPages
+          ? this._recognizeInChunks(job)
+          : this._recognizeOnce(job, {
+              inputName: job.storedName,
+              outputName,
+              timeoutMs: this.timeoutFor(pageCount),
+              pageCount,
+            });
+      const applyResult = async () =>
+        this._applyFile(outputFile, job.templateId, {
+          pageSize: this._pageSize(job),
+          pageSizes: job.pageSizes,
+          template: job.templateSnapshot,
         });
-        await this.assertActive(id);
+      await recognize();
 
-        const deadline = Date.now() + this.config.jobTimeoutMs;
-        await this._waitForSuccess(id, taskId, deadline);
-        const ocrRaw = await this._readOutputFile(
-          outputName,
-          this.config.outputFileWaitMs,
-          id,
-        );
-        return ocrRaw;
-      };
-      let ocrRaw = await recognize();
-
-      let result = await this.ocrResultService.apply(ocrRaw, job.templateId, {
-        pageSize: this._pageSize(job),
-        pageSizes: job.pageSizes,
-        template: job.templateSnapshot,
-      });
+      let result = await applyResult();
       if (!job.templateSnapshot && result.templateId) {
         job.templateSnapshot = await this.formTemplateService.get(
           result.templateId,
@@ -604,16 +594,13 @@ class FormJobService {
             { engineStatus: "AWAITING" },
             "template.enginePass",
           );
-          ocrRaw = await recognize();
-          result = await this.ocrResultService.apply(ocrRaw, job.templateId, {
-            pageSize: this._pageSize(job),
-            pageSizes: job.pageSizes,
-            template: job.templateSnapshot,
-          });
+          await recognize();
+          result = await applyResult();
         }
       }
       await this.assertActive(id);
       await this._patch(id, { status: "done", ocrResult: result, error: null });
+      if (job.chunkPages) this.removeParts(id);
       if (job.split?.mode && job.split.mode !== "none") {
         try {
           await this.autoSplit(id, job.split);
@@ -636,8 +623,10 @@ class FormJobService {
       if (
         err.code === "CANCELLED" ||
         (await this.repo.get(id))?.status === "cancelled"
-      )
+      ) {
+        this.removeParts(id);
         return;
+      }
       this.log.error("작업 실패", id, err.message);
       await this._patch(id, {
         status: "failed",
@@ -647,8 +636,198 @@ class FormJobService {
     }
   }
 
+  /** 파일 하나를 엔진에 보내고 결과 파일이 도착할 때까지 기다린다 */
+  async _recognizeOnce(job, { inputName, outputName, timeoutMs, pageCount }) {
+    const { id } = job;
+    const res = await this.client
+      .buildJob({
+        inputUri: await this._inputUri(inputName, timeoutMs),
+        outputUri: await this._outputUri(outputName),
+        outputType: "json",
+        ...this.engineOptions(job),
+      })
+      .catch((err) => {
+        if (["TIMEOUT", "UPSTREAM_ERROR"].includes(err.code)) {
+          this.log.warn("OCR 작업 접수 응답 없음", err.message);
+          throw new AppError(
+            err.status || 502,
+            "ENGINE_CONNECTION",
+            "파일은 정상 저장됐지만 OCR 서버에 작업을 요청하지 못했습니다. VPN 연결과 OCR 서버 상태를 확인한 뒤 다시 처리해 주세요.",
+          );
+        }
+        throw err;
+      });
+    if (res.status < 200 || res.status >= 300) {
+      throw AppError.upstream(`TextSense 작업 요청 실패 (HTTP ${res.status})`, {
+        response: res.text.slice(0, 500),
+      });
+    }
+    const taskId = res.json && res.json.id;
+    if (!taskId)
+      throw AppError.upstream("TextSense 응답에 작업 id 가 없습니다.", {
+        response: res.text.slice(0, 500),
+      });
+    await this._patch(id, {
+      taskId,
+      engineStatus: res.json.status || "AWAITING",
+    });
+    await this.assertActive(id);
+
+    await this._waitForSuccess(id, taskId, timeoutMs, pageCount);
+    await this._waitForOutput(outputName, this.config.outputFileWaitMs, id);
+  }
+
+  /**
+   * 페이지가 많은 PDF: 묶음으로 나눠 차례로 인식한 뒤 결과 하나로 합친다.
+   * 끝난 묶음(*.done.json)은 보관해, 다시 처리하거나 서버가 재시작돼도 남은 묶음부터 진행한다.
+   */
+  async _recognizeInChunks(job) {
+    const { id, chunkPages } = job;
+    const { inputDir, outputDir } = this.config.storage;
+    const total = job.pageSizes.length;
+    // 엔진 요청 옵션이 다르면 이전 결과를 재사용하지 않는다
+    const key = crypto
+      .createHash("sha1")
+      .update(JSON.stringify(this.engineOptions(job)))
+      .digest("hex")
+      .slice(0, 8);
+    const chunks = [];
+    for (let first = 1; first <= total; first += chunkPages) {
+      const stem = `${id}.part-${key}-${String(chunks.length + 1).padStart(4, "0")}`;
+      chunks.push({
+        first,
+        count: Math.min(chunkPages, total - first + 1),
+        input: `${stem}.pdf`,
+        output: `${stem}.json`,
+        done: `${stem}.done.json`,
+      });
+    }
+    const isDone = (c) => fs.existsSync(path.join(outputDir, c.done));
+    const pending = chunks.filter((c) => !isDone(c));
+    let finished = total - pending.reduce((n, c) => n + c.count, 0);
+    await this._patch(id, { progress: { done: finished, total } });
+    const source = path.join(inputDir, job.storedName);
+    if (pending.length)
+      await runResultTask(
+        "split",
+        {
+          file: source,
+          parts: pending.map((c) => ({
+            first: c.first,
+            count: c.count,
+            target: path.join(inputDir, c.input),
+          })),
+        },
+        this.config.heavyResultBytes,
+      );
+
+    for (const chunk of pending) {
+      await this._withEngineSlot(async () => {
+        for (let attempt = 0; ; attempt++) {
+          await this.assertActive(id);
+          removeManagedFile(outputDir, chunk.output);
+          try {
+            await this._recognizeOnce(job, {
+              inputName: chunk.input,
+              outputName: chunk.output,
+              timeoutMs: this.timeoutFor(chunk.count),
+              pageCount: total,
+            });
+            return;
+          } catch (err) {
+            // 시간 초과는 엔진이 아직 처리 중일 수 있으므로 같은 묶음을 겹쳐 보내지 않는다
+            if (
+              attempt >= this.config.ocrChunkRetries ||
+              !["UPSTREAM_ERROR", "ENGINE_CONNECTION"].includes(err.code)
+            ) {
+              if (err.code !== "CANCELLED")
+                err.message = `${chunk.first}~${chunk.first + chunk.count - 1}페이지 처리 실패: ${err.message} (완료한 ${finished}/${total}페이지는 보관했습니다. "다시 처리"하면 남은 부분부터 진행합니다.)`;
+              throw err;
+            }
+            this.log.warn("묶음 처리 재시도", id, chunk.first, err.message);
+            await sleep(this.config.ocrChunkRetryDelayMs);
+          }
+        }
+      });
+      fs.renameSync(
+        path.join(outputDir, chunk.output),
+        path.join(outputDir, chunk.done),
+      );
+      removeManagedFile(inputDir, chunk.input);
+      finished += chunk.count;
+      await this._patch(id, { progress: { done: finished, total } });
+    }
+    await this.assertActive(id);
+    await runResultTask(
+      "merge",
+      {
+        file: source,
+        parts: chunks.map((c) => ({
+          offset: c.first - 1,
+          file: path.join(outputDir, c.done),
+        })),
+        target: path.join(outputDir, `${id}.json`),
+      },
+      this.config.heavyResultBytes,
+    );
+    for (const c of chunks) removeManagedFile(outputDir, c.done);
+  }
+
+  /** 분할 처리 묶음은 문서가 여러 개여도 한 번에 하나만 엔진에 보낸다 */
+  _withEngineSlot(fn) {
+    const run = (this.engineSlot || Promise.resolve()).then(fn);
+    this.engineSlot = run.catch(() => {});
+    return run;
+  }
+
+  _partFiles(dir, id) {
+    return fs.existsSync(dir)
+      ? fs.readdirSync(dir).filter((name) => name.startsWith(`${id}.part-`))
+      : [];
+  }
+
+  removeParts(id) {
+    const { inputDir, outputDir } = this.config.storage;
+    for (const dir of [inputDir, outputDir])
+      for (const name of this._partFiles(dir, id)) removeManagedFile(dir, name);
+  }
+
+  _moveCompletedParts(from, to) {
+    const { outputDir } = this.config.storage;
+    for (const name of this._partFiles(outputDir, from))
+      if (name.endsWith(".done.json"))
+        fs.renameSync(
+          path.join(outputDir, name),
+          path.join(outputDir, to + name.slice(from.length)),
+        );
+    this.removeParts(from); // 남은 임시 분할 파일 정리
+  }
+
+  /** 서버 재시작 전에 분할 처리 중이던 문서를 이어서 진행할 수 있는지 */
+  async prepareResume(job) {
+    const resumes = (job.resumeCount || 0) + 1;
+    if (!job.chunkPages || resumes > MAX_RESUMES) return false;
+    await this._patch(job.id, { resumeCount: resumes }, "job.resumed");
+    return true;
+  }
+
   /** /job/status 를 폴링해 SUCCESS 가 될 때까지 대기. FAILURE 면 /job/errors 내용으로 실패 처리 */
-  async _waitForSuccess(id, taskId, deadline) {
+  async _waitForSuccess(id, taskId, timeoutMs, pageCount = 1) {
+    const started = Date.now();
+    const deadline = started + timeoutMs;
+    // 대용량 문서는 오래 걸리므로 VPN 이 잠시 끊겨도 포기하지 않고 더 기다린다
+    const graceMs =
+      pageCount > this.config.largeDocumentPages
+        ? this.config.statusErrorGraceMs
+        : 0;
+    // 오래 걸리는 작업은 조회 간격을 늘려 엔진과 이력의 부담을 줄인다
+    const pause = () =>
+      sleep(
+        Date.now() - started > 120000
+          ? Math.max(this.config.jobPollIntervalMs, 5000)
+          : this.config.jobPollIntervalMs,
+      );
+    let firstError = 0;
     let last = null;
     let transient = 0; // 연속된 일시적 조회 실패 횟수 (연결 끊김, 5xx). VPN 환경에서 한두 번 끊겨도 작업은 계속 진행 중일 수 있다.
     while (Date.now() < deadline) {
@@ -659,11 +838,16 @@ class FormJobService {
         if (st.status >= 500)
           throw AppError.upstream(`상태 조회 실패 (HTTP ${st.status})`);
       } catch (err) {
-        if (++transient > MAX_TRANSIENT_STATUS_ERRORS) throw err;
+        if (!transient) firstError = Date.now();
+        if (
+          ++transient > MAX_TRANSIENT_STATUS_ERRORS &&
+          Date.now() - firstError >= graceMs
+        )
+          throw err;
         this.log.warn(
           `상태 조회 일시 오류 (${transient}/${MAX_TRANSIENT_STATUS_ERRORS}): ${err.message}`,
         );
-        await sleep(this.config.jobPollIntervalMs);
+        await pause();
         continue;
       }
       transient = 0;
@@ -682,10 +866,34 @@ class FormJobService {
       if (status === "SUCCESS") return;
       if (status === "FAILURE")
         throw AppError.upstream(await this._describeFailure(taskId));
-      await sleep(this.config.jobPollIntervalMs);
+      await pause();
     }
     throw AppError.timeout(
-      `OCR 작업 대기 시간 초과 (${this.config.jobTimeoutMs}ms, 마지막 상태: ${last || "-"})`,
+      `OCR 작업 대기 시간 초과 (${timeoutMs >= 60000 ? `${Math.round(timeoutMs / 60000)}분` : `${timeoutMs}ms`}, 마지막 상태: ${last || "-"})`,
+    );
+  }
+
+  /** 페이지 수에 비례한 OCR 대기 제한 */
+  timeoutFor(pageCount) {
+    const { jobTimeoutMs, jobTimeoutPerPageMs, jobTimeoutMaxMs } = this.config;
+    return Math.max(
+      jobTimeoutMs,
+      Math.min(
+        jobTimeoutMaxMs,
+        jobTimeoutMs + Math.max(0, pageCount - 1) * jobTimeoutPerPageMs,
+      ),
+    );
+  }
+
+  /** 서식 적용. 큰 결과 파일은 작업 스레드에서 처리한다. */
+  async _applyFile(file, templateId, options) {
+    const forms = await this.formTemplateService.list();
+    if (templateId && !options.template && !forms.some((f) => f.id === templateId))
+      await this.formTemplateService.get(templateId); // 없는 서식이면 여기서 안내
+    return runResultTask(
+      "apply",
+      { file, forms, templateId, options },
+      this.config.heavyResultBytes,
     );
   }
 
@@ -719,17 +927,36 @@ class FormJobService {
   }
 
   /** 결과 JSON 파일을 읽는다. 공유 저장소 지연을 고려해 잠시 재시도(작성 중인 파일은 파싱 실패 → 재시도) */
-  async _readOutputFile(outputName, waitMs, id) {
-    const file = path.join(this.config.storage.outputDir, outputName);
-    const deadline = Date.now() + waitMs;
+  async _waitForOutput(outputName, waitMs, id) {
+    const { outputDir } = this.config.storage;
+    const file = path.join(outputDir, outputName);
+    let deadline = Date.now() + waitMs;
+    const limit = Date.now() + this.config.jobTimeoutMaxMs;
+    let lastSize = -1;
     for (;;) {
       if (id) await this.assertActive(id);
       if (fs.existsSync(file)) {
+        const { size } = fs.statSync(file);
+        if (size > this.config.heavyResultBytes) {
+          // 큰 파일은 여기서 해석하지 않고, 크기가 더 늘지 않으면 완료로 본다
+          if (size === lastSize) return;
+          lastSize = size;
+          deadline = Math.max(deadline, Date.now() + waitMs);
+          await sleep(2000);
+          continue;
+        }
         try {
-          return readJsonFileSync(file);
+          readJsonFileSync(file);
+          return;
         } catch (_) {
           /* 쓰는 중 */
         }
+      } else if (
+        fs.existsSync(outputDir) &&
+        fs.readdirSync(outputDir).some((n) => n.startsWith(`${outputName}.`) && n.endsWith(".part"))
+      ) {
+        // FTP 로 받는 중이면 끝날 때까지 기다린다
+        deadline = Math.max(deadline, Math.min(limit, Date.now() + waitMs));
       }
       if (Date.now() >= deadline) break;
       await sleep(Math.min(this.config.jobPollIntervalMs, 500));
@@ -771,6 +998,54 @@ class FormJobService {
       readJsonFileSync(file),
       { pageSize: this._pageSize(job), pageSizes },
     );
+  }
+
+  /** 결과 화면용: 페이지가 많은 문서는 요약만 보내고 상세는 getOcrPage 로 불러온다 */
+  async getOcrScreenView(id) {
+    const job = await this.get(id);
+    if (
+      job.status !== "done" ||
+      !(job.ocrResult.pageCount > this.config.largeDocumentPages)
+    )
+      return this.getOcrView(id);
+    const { summaries } = await this._pagesOf(job);
+    return { lazy: true, pages: summaries };
+  }
+
+  async getOcrPage(id, number) {
+    const job = await this.get(id);
+    if (job.status !== "done")
+      throw AppError.badRequest(`아직 결과가 없습니다 (상태: ${job.status})`);
+    const { summaries, pages } = await this._pagesOf(job);
+    const index = summaries.findIndex((p) => p.page === Number(number));
+    if (index < 0) throw AppError.notFound("해당 페이지가 없습니다.");
+    return JSON.parse(pages[index]);
+  }
+
+  /** 가장 최근에 연 대용량 문서 하나의 페이지 데이터를 10분간 보관 */
+  async _pagesOf(job) {
+    const file = path.join(this.config.storage.outputDir, `${job.id}.json`);
+    if (!fs.existsSync(file))
+      throw AppError.notFound("OCR 결과 파일이 없습니다.");
+    const mtime = fs.statSync(file).mtimeMs;
+    if (this.pageCache?.id !== job.id || this.pageCache.mtime !== mtime) {
+      const data = runResultTask(
+        "pages",
+        { file, options: { pageSize: this._pageSize(job), pageSizes: job.pageSizes || [] } },
+        this.config.heavyResultBytes,
+      );
+      this.pageCache = { id: job.id, mtime, data };
+      data.catch(() => {
+        if (this.pageCache?.data === data) this.pageCache = null;
+      });
+    }
+    const entry = this.pageCache;
+    clearTimeout(this.pageCacheTimer);
+    this.pageCacheTimer = setTimeout(() => {
+      this.pageCache = null;
+    }, 10 * 60 * 1000);
+    this.pageCacheTimer.unref();
+    return entry.data;
   }
 
   engineOptions(job) {
@@ -831,8 +1106,10 @@ class FormJobService {
     const template = templateId
       ? await this.formTemplateService.get(templateId)
       : null;
-    const raw = this.raw(job);
-    const result = await this.ocrResultService.apply(raw, templateId, {
+    const file = path.join(this.config.storage.outputDir, `${id}.json`);
+    if (!fs.existsSync(file))
+      throw AppError.notFound("OCR 결과 파일이 없습니다.");
+    const result = await this._applyFile(file, templateId, {
       pageSizes: job.pageSizes,
       pageSize: this._pageSize(job),
       template,
@@ -1052,6 +1329,7 @@ class FormJobService {
   }
 
   close() {
+    clearTimeout(this.pageCacheTimer);
     this.repo.close();
   }
 

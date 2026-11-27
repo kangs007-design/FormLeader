@@ -89,7 +89,19 @@ function createConfig(overrides = {}) {
       publicHost: env.FTP_PUBLIC_HOST || publicHostOf(env.FORMREADER_PUBLIC_URL),
     },
     requestTimeoutMs: toInt(env.REQUEST_TIMEOUT_MS, 15000),
-    jobTimeoutMs: toInt(env.JOB_TIMEOUT_MS, 120000),
+    // 대기 제한 = 기본 시간 + 추가 페이지 수 × 페이지당 시간 (최대 jobTimeoutMaxMs)
+    jobTimeoutMs: toInt(env.JOB_TIMEOUT_MS, 600000),
+    jobTimeoutPerPageMs: toInt(env.JOB_TIMEOUT_PER_PAGE_MS, 30000),
+    jobTimeoutMaxMs: toInt(env.JOB_TIMEOUT_MAX_MS, 24 * 60 * 60 * 1000),
+    // 대용량 문서: 이 페이지 수를 넘으면 상태 조회 끊김을 statusErrorGraceMs 동안 견디고, 결과 화면은 페이지별로 불러온다
+    // 이 페이지 수를 넘는 PDF 는 이 크기로 나눠 차례로 인식한다 (0 이면 나누지 않음)
+    ocrChunkPages: toInt(env.OCR_CHUNK_PAGES, 50),
+    ocrChunkRetries: toInt(env.OCR_CHUNK_RETRIES, 1),
+    ocrChunkRetryDelayMs: toInt(env.OCR_CHUNK_RETRY_DELAY_MS, 30000),
+    largeDocumentPages: toInt(env.LARGE_DOCUMENT_PAGES, 100),
+    statusErrorGraceMs: toInt(env.STATUS_ERROR_GRACE_MS, 10 * 60 * 1000),
+    // 이 크기를 넘는 결과 JSON 은 별도 작업 스레드에서 해석한다
+    heavyResultBytes: toInt(env.HEAVY_RESULT_BYTES, 5 * 1024 * 1024),
     jobPollIntervalMs: toInt(env.JOB_POLL_INTERVAL_MS, 1000),
     // 작업이 SUCCESS 가 된 뒤 결과 파일이 공유 저장소에 나타나길 기다리는 최대 시간
     outputFileWaitMs: toInt(env.OUTPUT_FILE_WAIT_MS, 30000),
