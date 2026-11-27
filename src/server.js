@@ -267,6 +267,12 @@ function createApp(config = createConfig()) {
     }
   });
 
+  const sweep = () =>
+    formJobService
+      .sweepDiscarded()
+      .catch((e) => log.warn("결과 파일 정리 실패", e.message));
+  let sweepTimer = null;
+
   // 내장 FTP 수신기 (TextSense 가 결과 JSON 을 업로드할 대상). 수신 폴더 = 결과를 읽는 폴더
   let ftpReceiver = null;
   if (config.ftp.enabled) {
@@ -280,6 +286,7 @@ function createApp(config = createConfig()) {
       ...config.ftp,
       dir: config.storage.outputDir,
       log: createLogger("ftp"),
+      onStored: sweep,
     });
   }
 
@@ -307,11 +314,15 @@ function createApp(config = createConfig()) {
       throw e;
     }
     log.info(`TextSense 시작: http://localhost:${port}`);
+    await sweep(); // 앱이 꺼진 동안 도착한 결과 정리
+    sweepTimer = setInterval(sweep, config.orphanSweepMs);
+    sweepTimer.unref();
     // 결과를 받을 포트가 모두 열린 뒤에 이어서 처리한다
     for (const id of resumable) formJobService.launch(id);
     return port;
   };
   const stop = async () => {
+    clearInterval(sweepTimer);
     await formJobService.idle();
     await workspaceService.close();
     if (ftpReceiver) await ftpReceiver.stop();

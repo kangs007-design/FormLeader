@@ -349,3 +349,9 @@ label.check-label > input, label:has(> input[type="checkbox"]) > input, label:ha
 .compare-legend .moved, .difference.moved { border-left-color: #b48220; }
 .compare-legend .pages { border-left-color: #7a55b8; }
 .difference.pages { border-left: 4px solid #7a55b8; }
+
+/* 서식 라이브러리: 세로 배치에서 편집 카드를 전체 폭으로 */
+@media (max-width: 1190px) { .split > .editor { width: 100%; } }
+
+/* 모바일 수치 카드의 위아래 여백 (공통 1px 규칙에 덮이지 않게) */
+@media (max-width: 600px) { .stat-grid .stat-card { padding-top: 16px; padding-bottom: 16px; } }

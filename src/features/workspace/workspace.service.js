@@ -580,6 +580,7 @@ class WorkspaceService {
       await Promise.all([...this.outgoing]);
       const samples = await this.samples.list();
       for (const j of jobs) {
+        await this.jobs.discard(j.id);
         this.jobs.removeParts(j.id);
         this.unlinkManaged(this.config.storage.inputDir, j.storedName);
         this.unlinkManaged(this.config.storage.outputDir, `${j.id}.json`);

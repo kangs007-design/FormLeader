@@ -99,6 +99,8 @@ function createConfig(overrides = {}) {
     ocrChunkRetries: toInt(env.OCR_CHUNK_RETRIES, 1),
     ocrChunkRetryDelayMs: toInt(env.OCR_CHUNK_RETRY_DELAY_MS, 30000),
     largeDocumentPages: toInt(env.LARGE_DOCUMENT_PAGES, 100),
+    // 취소·삭제한 문서의 늦게 도착한 결과 파일을 정리하는 간격 (공유 폴더 방식용. FTP 는 수신 직후에도 정리)
+    orphanSweepMs: toInt(env.ORPHAN_SWEEP_MS, 60000),
     statusErrorGraceMs: toInt(env.STATUS_ERROR_GRACE_MS, 10 * 60 * 1000),
     // 이 크기를 넘는 결과 JSON 은 별도 작업 스레드에서 해석한다
     heavyResultBytes: toInt(env.HEAVY_RESULT_BYTES, 5 * 1024 * 1024),

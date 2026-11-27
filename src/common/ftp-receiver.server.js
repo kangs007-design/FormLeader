@@ -22,8 +22,8 @@ class FtpReceiver {
    * @param {{dir:string, user:string, password:string, port?:number, pasvMin?:number, pasvMax?:number,
    *          maxBytes?:number, idleMs?:number, log?:object}} opts  pasvMin/Max 가 0 이면 임의 포트
    */
-  constructor({ dir, user, password, port = 2121, pasvMin = 0, pasvMax = 0, maxBytes = 500 * 1024 * 1024, idleMs = 120000, log = null }) {
-    Object.assign(this, { dir, user, password, port, pasvMin, pasvMax, maxBytes, idleMs });
+  constructor({ dir, user, password, port = 2121, pasvMin = 0, pasvMax = 0, maxBytes = 500 * 1024 * 1024, idleMs = 120000, log = null, onStored = null }) {
+    Object.assign(this, { dir, user, password, port, pasvMin, pasvMax, maxBytes, idleMs, onStored });
     this.log = log || { info() {}, warn() {}, error() {}, debug() {} };
     this.server = net.createServer((s) => this._onConnection(s));
     this.sockets = new Set();
@@ -181,6 +181,7 @@ class FtpReceiver {
         fs.rmSync(tmp, { force: true });
         this.log.info(`FTP 수신 완료: ${name} (${bytes} bytes)`);
         send(226, 'Transfer complete');
+        this.onStored?.(name);
       } catch (e) { send(451, 'Local error'); }
     };
 

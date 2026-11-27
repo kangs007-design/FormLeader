@@ -48,6 +48,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MAX_RESUMES = 3;
 /** 문서 소유자: 저장된 ownerId, 이전 데이터는 최초 이벤트의 작업자 */
 const ownerOf = (job) => job.ownerId || job.events?.[0]?.actor || null;
+/** 취소·삭제한 문서의 ID 를 이 기간 동안 기억해, 늦게 도착한 결과 파일을 지운다 */
+const DISCARD_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** 관리자는 전체, 일반 사용자는 본인 문서만 */
 const canAccess = (user, job) => user?.role === "admin" || ownerOf(job) === user?.id;
 
@@ -59,6 +62,9 @@ class FormJobService {
     this.formTemplateService = formTemplateService;
     this.repo = new SqliteRepository(
       path.join(config.dataDir, "form-jobs.json"),
+    );
+    this.discarded = new SqliteRepository(
+      path.join(config.dataDir, "discarded-jobs.json"),
     );
     this.log = createLogger("form-job");
     this.running = new Set(); // 테스트/종료 시 완료 대기용
@@ -288,6 +294,7 @@ class FormJobService {
     const job = await this.get(id);
     if (["pending", "processing"].includes(job.status))
       throw AppError.badRequest("진행 중인 작업은 취소 후 삭제하세요.");
+    await this.discard(id);
     await this.repo.remove(id);
     // 원본·결과 파일도 함께 파기하고, 다른 작업에 남은 참조를 정리한다
     removeManagedFile(this.config.storage.inputDir, job.storedName);
@@ -482,6 +489,7 @@ class FormJobService {
       "status.cancelled",
       actor,
     );
+    await this.discard(id);
     if (job.taskId && this.config.cancelPath) {
       try {
         const response = await this.client._call({
@@ -801,6 +809,34 @@ class FormJobService {
           path.join(outputDir, to + name.slice(from.length)),
         );
     this.removeParts(from); // 남은 임시 분할 파일 정리
+  }
+
+  async discard(id) {
+    if (!(await this.discarded.get(id)))
+      await this.discarded.insert({ id, at: new Date().toISOString() });
+  }
+
+  /**
+   * 앱의 취소는 엔진 작업을 멈추지 못해, 취소·삭제한 문서의 결과가 나중에 도착할 수 있다.
+   * 기록해 둔 ID 의 결과 파일만 지운다. 이 앱이 버렸다고 기록하지 않은 파일은 건드리지 않는다.
+   */
+  async sweepDiscarded() {
+    const records = await this.discarded.list();
+    if (!records.length) return;
+    const ids = new Set(records.map((r) => r.id));
+    const dir = this.config.storage.outputDir;
+    for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
+      // ".part" 로 끝나는 파일은 FTP 수신 중인 임시 파일 (수신이 끝나면 다시 정리한다)
+      if (name.endsWith(".part") || !ids.has(name.split(".")[0])) continue;
+      try {
+        removeManagedFile(dir, name);
+      } catch (e) {
+        this.log.warn("버린 문서의 결과 파일 삭제 실패", name, e.message);
+      }
+    }
+    for (const r of records)
+      if (Date.now() - Date.parse(r.at) > DISCARD_KEEP_MS)
+        await this.discarded.remove(r.id);
   }
 
   /** 서버 재시작 전에 분할 처리 중이던 문서를 이어서 진행할 수 있는지 */
@@ -1331,6 +1367,7 @@ class FormJobService {
   close() {
     clearTimeout(this.pageCacheTimer);
     this.repo.close();
+    this.discarded.close();
   }
 
   /** 실행 중인 작업이 모두 끝날 때까지 대기 (테스트/종료용) */
