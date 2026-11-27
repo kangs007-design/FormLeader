@@ -107,3 +107,8 @@ input.is-invalid, select.is-invalid, textarea.is-invalid,
   display: block; margin: 7px 0 0; color: #e03131; font-size: 13px; font-weight: 500; line-height: 1.45;
 }
 .field-error[hidden] { display: none; }
+
+/* 좌우에 다른 요소가 있는 줄: 오류 문구를 띄워 정렬을 유지한다 (여백은 validation.util.js 가 줄 전체에 준다) */
+.field-error.is-floating { position: absolute; margin: 4px 0 0; }
+/* 반복 그룹 표: 한 칸에 오류가 있어도 입력칸 높이를 맞춘다 */
+.review-group td { vertical-align: top; }

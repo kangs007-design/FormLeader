@@ -30,6 +30,15 @@ FR.showTab = function showTab(name) {
     FR.currentUser?.role !== "admin"
   )
     name = "dashboard";
+  // 다른 화면으로 옮기면 이전 입력 오류·결과 메시지와 확인용 입력값을 지운다
+  const previous = document.querySelector(".tab.active");
+  if (previous && previous.id !== `tab-${name}`) {
+    FR.resetNotices(document.querySelector("#main-content"));
+    for (const id of ["#or-split-groups", "#op-reset-confirm"]) FR.$(id).value = "";
+    FR.$("#op-reset-forms").checked = false;
+    const count = FR.$("#jr-split-count");
+    if (!(Number.isInteger(Number(count.value)) && Number(count.value) >= 1)) count.value = "1";
+  }
   document.querySelectorAll("#tabs .nav-item").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === name);
     if (b.dataset.tab === name) b.setAttribute("aria-current", "page");

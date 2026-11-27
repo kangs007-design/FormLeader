@@ -39,7 +39,12 @@ FR.readFileAsBase64 = (file) => new Promise((resolve, reject) => {
   fr.readAsDataURL(file);
 });
 
-FR.setMsg = (node, text, ok = true) => { node.textContent = text; node.className = `msg ${ok ? 'ok' : 'ng'}`; };
+FR.setMsg = (node, text, ok = true) => {
+  // 작업이 성공하면 같은 화면에 남은 입력 오류 표시는 더 이상 유효하지 않다
+  if (ok && text) FR.clearFieldErrors(FR.noticeScope(node));
+  node.textContent = text;
+  node.className = `msg ${ok ? 'ok' : 'ng'}`;
+};
 
 /** index.html 의 SVG 스프라이트(#i-이름) 아이콘 */
 FR.icon = function icon(name) {

@@ -3,6 +3,8 @@
  * 웹 공통: 입력 검증 표시 (로그인/가입 화면과 업무 화면에서 함께 사용)
  *  - 빨간 테두리(.is-invalid) + 입력창 아래 오류 문구(.field-error)로 통일해서 보여 준다.
  *  - 사용자가 다시 입력하면 해당 칸의 오류는 자동으로 지워진다.
+ *  - 새 검증·새 작업·화면 전환 때 이전 오류와 결과 메시지를 지운다. (FR.resetNotices)
+ *  - 오류 문구는 입력칸 글자보다 1pt 작고, 좌우에 다른 요소가 있으면 줄 정렬이 깨지지 않게 배치한다.
  */
 window.FR = window.FR || {};
 
@@ -37,6 +39,68 @@ window.FR = window.FR || {};
     return id ? document.getElementById(id) : null;
   };
 
+  /** 검증 결과를 함께 관리하는 범위: 대화상자 > 화면 > 폼 */
+  const scopeOf = (el) => el.closest('dialog, section.tab, form') || document.body;
+
+  /** 입력칸(또는 감싼 label)과 같은 줄에 다른 요소가 있으면 그 줄의 요소들을 돌려준다 */
+  function sameLine(anchor) {
+    for (let el = anchor, depth = 0; el && el.parentElement && depth < 3; el = el.parentElement, depth++) {
+      const box = el.getBoundingClientRect();
+      const beside = [...el.parentElement.children].filter((other) => {
+        if (other === el || other.classList.contains('field-error') || !other.getClientRects().length) return false;
+        if (getComputedStyle(other).position === 'absolute') return false;
+        const r = other.getBoundingClientRect();
+        return r.top < box.bottom && r.bottom > box.top && (r.left >= box.right - 1 || r.right <= box.left + 1);
+      });
+      if (beside.length) return [el, ...beside];
+    }
+    return null;
+  }
+
+  /**
+   * 보이는 오류 문구를 다시 배치한다. 좌우에 다른 요소가 있으면 문구를 띄우고,
+   * 같은 줄의 모든 요소에 같은 아래 여백을 주어 정렬은 유지한 채 다음 줄만 밀어낸다.
+   */
+  function layoutErrors() {
+    document.querySelectorAll('[data-error-gap]').forEach((el) => {
+      el.style.marginBottom = el.dataset.errorGap;
+      delete el.dataset.errorGap;
+    });
+    const nodes = [...document.querySelectorAll('.field-error')];
+    nodes.forEach((n) => { n.classList.remove('is-floating'); n.style.left = n.style.top = n.style.width = ''; });
+    const gaps = new Map();
+    for (const node of nodes) {
+      const anchor = node.previousElementSibling;
+      if (node.hidden || !anchor || !node.getClientRects().length) continue;
+      const line = sameLine(anchor);
+      if (!line) continue;
+      const parent = node.parentElement;
+      if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+      node.classList.add('is-floating'); // 흐름에서 뺀 뒤에 입력칸 위치를 잰다
+      const inLabel = line[0] !== anchor;
+      node.style.left = `${anchor.offsetLeft}px`;
+      node.style.top = `${anchor.offsetTop + anchor.offsetHeight}px`;
+      node.style.width = `${Math.max(120, inLabel ? parent.clientWidth - anchor.offsetLeft : anchor.offsetWidth)}px`;
+      const height = node.offsetHeight + 5;
+      line.forEach((el) => gaps.set(el, Math.max(gaps.get(el) || 0, height)));
+    }
+    for (const [el, height] of gaps) {
+      el.dataset.errorGap = el.style.marginBottom;
+      el.style.marginBottom = `${parseFloat(getComputedStyle(el).marginBottom) + height}px`;
+    }
+  }
+  window.addEventListener('resize', layoutErrors);
+
+  /** 오류 문구 글자는 해당 입력칸보다 1pt 작게 */
+  FR.fitErrorText = (node, input) => { node.style.fontSize = `calc(${getComputedStyle(input).fontSize} - 1pt)`; };
+
+  /** 범위 안의 이전 검증 오류와 결과 메시지를 지운다. data-keep(유지)·data-busy(진행 중) 메시지는 남긴다 */
+  FR.resetNotices = function resetNotices(root = document) {
+    FR.clearFieldErrors(root);
+    root.querySelectorAll('.msg:not([data-keep]):not([data-busy])').forEach((node) => { node.textContent = ''; });
+  };
+  FR.noticeScope = scopeOf;
+
   /** 입력칸에 오류 표시. message 가 비면 오류 해제 */
   FR.setFieldError = function setFieldError(input, message) {
     if (!input) return;
@@ -45,7 +109,7 @@ window.FR = window.FR || {};
       boxOf(input).classList.remove('is-invalid');
       input.removeAttribute('aria-invalid');
       input.removeAttribute('aria-describedby');
-      if (node) node.hidden = true;
+      if (node && !node.hidden) { node.hidden = true; layoutErrors(); }
       return;
     }
     if (!node) {
@@ -60,9 +124,11 @@ window.FR = window.FR || {};
     }
     node.textContent = message;
     node.hidden = false;
+    FR.fitErrorText(node, input);
     boxOf(input).classList.add('is-invalid');
     input.setAttribute('aria-invalid', 'true');
     input.setAttribute('aria-describedby', node.id);
+    layoutErrors();
   };
 
   FR.clearFieldErrors = function clearFieldErrors(root = document) {
@@ -89,6 +155,9 @@ window.FR = window.FR || {};
    * @returns {boolean} 모두 통과하면 true
    */
   FR.validateFields = function validateFields(inputs, rules = []) {
+    // 새로 검사할 때는 같은 화면에 남아 있던 이전 오류·결과 메시지부터 지운다
+    const probe = inputs.find(Boolean) || rules[0]?.input;
+    if (probe) FR.resetNotices(scopeOf(probe));
     let first = null;
     const failed = new Set();
     const fail = (input, message) => { FR.setFieldError(input, message); failed.add(input); if (!first) first = input; };

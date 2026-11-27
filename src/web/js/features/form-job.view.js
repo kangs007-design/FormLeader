@@ -776,6 +776,11 @@ FR.formJobView = (() => {
             count += 1;
           }
     }
+    // 서버 검증 오류 문구도 입력칸보다 1pt 작게
+    FR.$("#or-fields").querySelectorAll(".field-err").forEach((node) => {
+      const input = node.parentElement.querySelector("input");
+      if (input) FR.fitErrorText(node, input);
+    });
     const avg = count ? (sum / count).toFixed(2) : "-";
     FR.$("#or-summary").replaceChildren(
       ...[
@@ -805,6 +810,9 @@ FR.formJobView = (() => {
       ]);
       currentJob = job;
       dirty = false;
+      // 이전 문서(또는 이전 작업)의 입력 오류·결과 메시지를 남기지 않는다
+      FR.resetNotices(FR.$("#tab-ocr-result"));
+      FR.$("#or-split-groups").value = "";
       FR.$("#or-empty").hidden = true;
       FR.$("#or-detail").hidden = false;
       FR.$("#or-title").textContent = job.fileName;
@@ -1056,6 +1064,7 @@ FR.formJobView = (() => {
       FR.$("#or-export").addEventListener("click", exportResult);
       const action = async (fn) => {
         if (!currentJob) return;
+        FR.resetNotices(FR.$("#tab-ocr-result"));
         if (dirty) {
           FR.setMsg(
             FR.$("#or-action-msg"),

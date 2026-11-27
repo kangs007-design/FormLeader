@@ -83,6 +83,7 @@ FR.usersView = (() => {
       const button = event.target.closest('[data-filter]');
       if (!button) return;
       filter = button.dataset.filter;
+      FR.resetNotices(FR.$('#tab-users'));
       FR.$('#users-filters').querySelectorAll('button').forEach((candidate) => { candidate.classList.toggle('active', candidate === button); candidate.setAttribute('aria-pressed', String(candidate === button)); });
       render();
     });

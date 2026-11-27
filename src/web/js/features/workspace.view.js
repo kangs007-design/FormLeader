@@ -523,7 +523,9 @@ FR.compareView = (() => {
       FR.$("#cp-run").onclick = async () => {
         const b = FR.$("#cp-run");
         b.disabled = true;
+        FR.resetNotices(FR.$("#tab-compare"));
         FR.setMsg(FR.$("#cp-msg"), "문서 인식 및 비교 중…");
+        FR.$("#cp-msg").dataset.busy = "1"; // 진행 안내는 화면을 옮겨도 남긴다
         try {
           const leftId = await upload("left"),
             rightId = await upload("right"),
@@ -543,10 +545,12 @@ FR.compareView = (() => {
         } catch (e) {
           FR.setMsg(FR.$("#cp-msg"), e.message, false);
         } finally {
+          delete FR.$("#cp-msg").dataset.busy;
           b.disabled = false;
         }
       };
       FR.$("#cp-open").onclick = async () => {
+        FR.resetNotices(FR.$("#tab-compare"));
         try {
           const id = FR.$("#cp-history").value;
           if (id) await open(await FR.api("GET", `/api/comparisons/${id}`));

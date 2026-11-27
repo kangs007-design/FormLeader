@@ -447,7 +447,7 @@ FR.formTemplateView = (() => {
     page = 1;
     selected = 0;
     selectedGroup = 0;
-    FR.clearFieldErrors(FR.$("#tab-form-template"));
+    FR.resetNotices(FR.$("#tab-form-template"));
     FR.$("#ft-name").value = f?.name || "";
     FR.$("#ft-doctype").value = f?.docType || "";
     FR.$("#ft-keywords").value = (f?.keywords || []).join(", ");
